@@ -1,0 +1,37 @@
+CRLF = _{ "\r\n" | "\n" | "\r" }
+COMMENT = _{ !request_separator ~ "#" ~ (!CRLF ~ ANY)* ~ CRLF }
+SP = _{ " " }
+
+url_string = _{ (inline_script | (!(" " ~ http_version) ~ !CRLF ~ ANY))* }
+token = _{ (tchar | inline_script)* }
+tchar = _{ "!" | "#" | "$" | "%" | "&" | "'" | "*" | "+" | "-" | "." | "^" | "_" | "`" | "|" | "~" | ASCII_ALPHANUMERIC }
+request_separator = _{ "###" }
+
+handler_script = { handler_script_start ~ handler_script_string ~ handler_script_end }
+handler_script_string = { handler_script_string_character* }
+handler_script_string_character = _{ !handler_script_end ~ !"{%" ~ ANY }
+handler_script_start = _{ "{%" ~ (SP | CRLF)* }
+handler_script_end = _{ (SP | CRLF)* ~ "%}" }
+
+inline_script = { "{{" ~ SP* ~ inline_script_string ~ inline_script_end }
+inline_script_string = { inline_script_string_character* }
+inline_script_string_character = _{ !inline_script_end ~ !"{{" ~ ANY}
+inline_script_end = _{ SP* ~ "}}" }
+
+request_script = { request ~ request_body? ~ request_handler? ~ CRLF* ~ request_separator* }
+request_body = ${ (!request_separator ~ !request_handler_start ~ (inline_script | ANY))+ }
+request_handler = ${ !request_separator ~ request_handler_start ~ handler_script }
+request_handler_start = _{ CRLF{2,} ~ "> "}
+
+request = _{ request_line ~ (header_field ~ CRLF)* ~ CRLF }
+
+request_line = _{ method ~ SP ~ request_target ~ (SP ~ http_version)? ~ CRLF }
+method = { ASCII_ALPHA_UPPER{3,} }
+request_target = { url_string }
+http_version = _{ "HTTP/1.1" | "HTTP/1.0" }
+
+header_field = ${ field_name ~ ":" ~ SP* ~ field_value}
+field_name = { token }
+field_value = { (!CRLF ~ (inline_script | ANY))* }
+
+file = { SOI ~ CRLF* ~ (request_script ~ CRLF*)* ~ EOI }
