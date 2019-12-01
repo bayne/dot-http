@@ -1,0 +1,25 @@
+[package]
+authors = ["Brian Payne <brian.payne@funraise.io>"]
+edition = "2018"
+name = "dot_http"
+version = "0.1.0"
+
+[features]
+default = ["runtime"]
+#default = ["native-client"]
+#native-client = ["curl-client", "hyper-client"]
+#hyper-client = ["hyper", "runtime"]
+#curl-client = ["isahc"]
+#wasm-client = ["js-sys", "web-sys", "wasm-bindgen", "wasm-bindgen-futures"]
+
+[dependencies]
+Boa = { git = "https://github.com/bayne/boa", branch = "lexer-err" }
+surf = "1.0.2"
+pest = "2.1.2"
+pest_derive = "2.1.0"
+gc = "0.3.3"
+#httparse = "1.3.4"
+#nom = "5.0.1"
+#isahc = { version = "0.7.3", optional = true }
+#hyper = { version = "0.13.0-alpha.1", optional = true }
+runtime = { version = "0.3.0-alpha.6", optional = true }
