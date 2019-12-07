@@ -1,4 +1,4 @@
-use crate::{Error, ErrorKind, Method, Request, RequestScript, Value};
+use crate::{Error, ErrorKind, Method, Request, RequestScript, Value, Response};
 
 use crate::ErrorKind::RequestFailed;
 use std::convert::TryInto;
@@ -7,13 +7,7 @@ use surf::{http, url};
 
 #[cfg(test)]
 mod tests;
-pub(crate) struct Response {
-    pub(crate) version: String,
-    pub(crate) status_code: u16,
-    pub(crate) status: String,
-    pub(crate) headers: Vec<(String, String)>,
-    pub(crate) body: String,
-}
+
 type ExecutableResult = Result<Response, Error>;
 
 impl From<ErrorKind> for Error {

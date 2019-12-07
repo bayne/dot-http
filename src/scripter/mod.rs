@@ -1,49 +1,65 @@
-use crate::*;
-use boa::builtins::value::ValueData;
-use boa::exec::{Executor, Interpreter};
-use boa::syntax::ast::expr::Expr;
-use boa::syntax::lexer::{Lexer, LexerError};
-use boa::syntax::parser::ParseError;
-use boa::syntax::parser::Parser;
-use gc::Gc;
+use crate::{File, Header, Request, RequestScript, Value};
 use std::convert::From;
+
+pub(crate) mod boa;
 
 #[cfg(test)]
 mod tests;
 
-impl From<LexerError> for Error {
-    fn from(e: LexerError) -> Self {
-        Error {
-            kind: ErrorKind::ScriptRun,
-            message: format!("{}", e),
-        }
-    }
-}
-
-impl From<Gc<ValueData>> for Error {
-    fn from(e: Gc<ValueData>) -> Self {
-        Error {
-            kind: ErrorKind::ScriptRun,
-            message: format!("{}", e),
-        }
-    }
-}
-
-impl From<ParseError> for Error {
+impl From<ParseError> for ScriptError {
     fn from(e: ParseError) -> Self {
-        Error {
-            kind: ErrorKind::Parse,
-            message: format!("{:?}", e),
-        }
+        unimplemented!()
+        //        Error {
+        //            kind: ErrorKind::Parse,
+        //            message: format!("{:?}", e),
+        //        }
     }
 }
 
-pub(crate) trait Processable {
-    fn process(&mut self, _engine: &mut Interpreter) -> Result<(), Error>;
+impl From<ExecuteError> for ScriptError {
+    fn from(e: ExecuteError) -> Self {
+        unimplemented!()
+        //        Error {
+        //            kind: ErrorKind::Parse,
+        //            message: format!("{:?}", e),
+        //        }
+    }
 }
 
-impl Processable for File {
-    fn process(&mut self, engine: &mut Interpreter) -> Result<(), Error> {
+#[derive(Debug)]
+pub struct ScriptError;
+#[derive(Debug)]
+pub struct ExecuteError;
+#[derive(Debug)]
+pub struct ParseError;
+
+impl std::error::Error for ScriptError {}
+impl std::fmt::Display for ScriptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unimplemented!()
+    }
+}
+
+impl std::error::Error for ExecuteError {}
+impl std::fmt::Display for ExecuteError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unimplemented!()
+    }
+}
+
+impl std::error::Error for ParseError {}
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        unimplemented!()
+    }
+}
+
+pub trait Processable<T: ScriptEngine> {
+    fn process(&mut self, _engine: &mut T) -> Result<(), ScriptError>;
+}
+
+impl<T: ScriptEngine> Processable<T> for File {
+    fn process(&mut self, engine: &mut T) -> Result<(), ScriptError> {
         for request_script in &mut self.request_scripts {
             request_script.process(engine)?;
         }
@@ -51,14 +67,14 @@ impl Processable for File {
     }
 }
 
-impl Processable for RequestScript {
-    fn process(&mut self, engine: &mut Interpreter) -> Result<(), Error> {
+impl<T: ScriptEngine> Processable<T> for RequestScript {
+    fn process(&mut self, engine: &mut T) -> Result<(), ScriptError> {
         self.request.process(engine)
     }
 }
 
-impl Processable for Request {
-    fn process(&mut self, engine: &mut Interpreter) -> Result<(), Error> {
+impl<T: ScriptEngine> Processable<T> for Request {
+    fn process(&mut self, engine: &mut T) -> Result<(), ScriptError> {
         for header in &mut self.headers {
             header.process(engine)?;
         }
@@ -73,40 +89,47 @@ impl Processable for Request {
     }
 }
 
-impl Processable for Header {
-    fn process(&mut self, engine: &mut Interpreter) -> Result<(), Error> {
+impl<T: ScriptEngine> Processable<T> for Header {
+    fn process(&mut self, engine: &mut T) -> Result<(), ScriptError> {
         self.field_value.process(engine)?;
         Ok(())
     }
 }
 
-pub fn parser_expr(src: &str) -> Result<Expr, Error> {
-    let mut lexer = Lexer::new(src);
-    lexer.lex()?;
-    let tokens = lexer.tokens;
-    Ok(Parser::new(tokens).parse_all()?)
+pub trait ScriptEngine {
+    type Expression;
+    type EnvExpression;
+
+    fn execute(&mut self, expression: Self::Expression) -> Result<String, ExecuteError>;
+    fn parse(&mut self, script: String) -> Result<Self::Expression, ParseError>;
+    fn parse_env(&mut self, script: String) -> Result<Self::EnvExpression, ParseError>;
+    fn execute_env(
+        &mut self,
+        expression: Self::EnvExpression,
+        env: String,
+    ) -> Result<String, ExecuteError>;
 }
 
-impl Processable for Value {
-    fn process(&mut self, engine: &mut Interpreter) -> Result<(), Error> {
+impl<E, T: ScriptEngine<Expression = E>> Processable<T> for Value {
+    fn process(&mut self, engine: &mut T) -> Result<(), ScriptError> {
         if let Value::WithInline {
             value,
             inline_scripts,
         } = self
         {
-            let evaluated: Vec<(&String, Expr)> = inline_scripts
+            let evaluated = inline_scripts
                 .iter()
                 .map(|inline_script| {
                     Ok((
                         &inline_script.placeholder,
-                        parser_expr(inline_script.script.as_str())?,
+                        engine.parse(inline_script.script.clone())?,
                     ))
                 })
-                .collect::<Result<Vec<(&String, Expr)>, Error>>()?;
+                .collect::<Result<Vec<(&String, E)>, ParseError>>()?;
 
             let mut interpolated = value.clone();
             for (placeholder, expr) in evaluated {
-                let result = engine.run(&expr)?.to_string();
+                let result = engine.execute(expr)?.to_string();
                 interpolated = interpolated.replacen(placeholder.as_str(), result.as_str(), 1);
             }
 

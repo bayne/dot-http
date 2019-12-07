@@ -19,6 +19,6 @@ fn test_execute() {
         let script = file.request_scripts.get(0).unwrap();
         let executor = Executor::new();
         let res = executor.execute(script).await;
-        dbg!(res).unwrap();
+//        dbg!(res).unwrap();
     });
 }

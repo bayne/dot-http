@@ -4,6 +4,7 @@ extern crate pest_derive;
 #[macro_use]
 extern crate pest;
 
+use crate::scripter::ParseError;
 use boa::syntax::ast::expr::Expr;
 use surf::Exception;
 
@@ -30,7 +31,7 @@ pub enum ErrorKind {
     RequestFailed(Exception),
     MissingArgument(&'static str),
     CannotReadEnvFile(std::io::Error),
-    CannotParseEnvFile(Box<Error>),
+    CannotParseEnvFile(ParseError),
     InvalidEnvFile(Expr),
     CannotReadRequestScriptFile(std::io::Error),
     UnexpectedEnvironment(Expr),
@@ -102,4 +103,12 @@ enum Value {
 struct InlineScript {
     script: String,
     placeholder: String,
+}
+
+struct Response {
+    version: String,
+    status_code: u16,
+    status: String,
+    headers: Vec<(String, String)>,
+    body: String,
 }
