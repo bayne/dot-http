@@ -4,10 +4,17 @@ extern crate pest;
 pub(crate) mod tests;
 
 use crate::ErrorKind::*;
-use crate::Method::{Delete, Get, Patch, Post, Put};
+use crate::Method::Delete;
+use crate::Method::Get;
+use crate::Method::Patch;
+use crate::Method::Post;
+use crate::Method::Put;
+use crate::Unprocessed::WithInline;
+use crate::Unprocessed::WithoutInline;
 use crate::*;
 use pest::iterators::Pair;
 use pest::Parser;
+use pest::Span;
 use std::convert::TryFrom;
 
 #[derive(Parser)]
@@ -38,6 +45,7 @@ impl TryFrom<Pair<'_, Rule>> for Handler {
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::request_handler => Ok(Handler {
+                selection: pair.as_span().into(),
                 script: pair
                     .into_inner()
                     .find_map(|pair| match pair.as_rule() {
@@ -63,13 +71,14 @@ impl TryFrom<Pair<'_, Rule>> for Method {
     type Error = Error;
 
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Self::Error> {
+        let selection = pair.as_span().into();
         match pair.as_rule() {
             Rule::method => match pair.as_str() {
-                "GET" => Ok(Get),
-                "POST" => Ok(Post),
-                "DELETE" => Ok(Delete),
-                "PUT" => Ok(Put),
-                "PATCH" => Ok(Patch),
+                "GET" => Ok(Get(selection)),
+                "POST" => Ok(Post(selection)),
+                "DELETE" => Ok(Delete(selection)),
+                "PUT" => Ok(Put(selection)),
+                "PATCH" => Ok(Patch(selection)),
                 _ => Err(Error {
                     kind: UnexpectedMethod,
                     message: format!("Unsupported method: {}", pair.as_str()),
@@ -80,7 +89,7 @@ impl TryFrom<Pair<'_, Rule>> for Method {
     }
 }
 
-impl TryFrom<Pair<'_, Rule>> for Value {
+impl TryFrom<Pair<'_, Rule>> for Value<Unprocessed> {
     type Error = Error;
 
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Self::Error> {
@@ -88,6 +97,7 @@ impl TryFrom<Pair<'_, Rule>> for Value {
             (Rule::request_target, string)
             | (Rule::field_value, string)
             | (Rule::request_body, string) => {
+                let selection = pair.as_span().clone().into();
                 let inline_scripts = pair
                     .into_inner()
                     .filter(|pair| pair.as_rule() == Rule::inline_script)
@@ -95,12 +105,17 @@ impl TryFrom<Pair<'_, Rule>> for Value {
                     .collect::<Result<Vec<InlineScript>, Error>>()?;
 
                 if !inline_scripts.is_empty() {
-                    Ok(Value::WithInline {
-                        value: string.to_string(),
-                        inline_scripts,
+                    Ok(Value {
+                        state: WithInline {
+                            value: string.to_string(),
+                            inline_scripts,
+                            selection,
+                        },
                     })
                 } else {
-                    Ok(Value::WithoutInline(string.to_string()))
+                    Ok(Value {
+                        state: WithoutInline(string.to_string(), selection),
+                    })
                 }
             }
             _ => Err(Error::invalid_pair(Rule::request_target, pair.as_rule())),
@@ -113,6 +128,7 @@ impl TryFrom<Pair<'_, Rule>> for InlineScript {
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error> {
         match pair.as_rule() {
             Rule::inline_script => Ok(InlineScript {
+                selection: pair.as_span().into(),
                 placeholder: pair.as_str().to_string(),
                 script: pair
                     .into_inner()
@@ -126,14 +142,16 @@ impl TryFrom<Pair<'_, Rule>> for InlineScript {
     }
 }
 
-impl TryFrom<Pair<'_, Rule>> for Header {
+impl TryFrom<Pair<'_, Rule>> for Header<Unprocessed> {
     type Error = Error;
 
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Self::Error> {
         match pair.as_rule() {
             Rule::header_field => {
+                let selection = pair.as_span().clone().into();
                 let mut pairs = pair.into_inner();
                 Ok(Header {
+                    selection,
                     field_name: pairs
                         .find_map(|pair| match pair.as_rule() {
                             Rule::field_name => Some(pair.as_str().to_string()),
@@ -153,13 +171,15 @@ impl TryFrom<Pair<'_, Rule>> for Header {
     }
 }
 
-impl TryFrom<Pair<'_, Rule>> for Request {
+impl TryFrom<Pair<'_, Rule>> for Request<Unprocessed> {
     type Error = Error;
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error> {
         match pair.as_rule() {
             Rule::request_script => {
+                let selection = pair.as_span().clone().into();
                 let mut pairs = pair.into_inner();
                 Ok(Request {
+                    selection,
                     method: pairs
                         .find_map(|pair| match pair.as_rule() {
                             Rule::method => Some(Method::try_from(pair)),
@@ -178,7 +198,7 @@ impl TryFrom<Pair<'_, Rule>> for Request {
                             Rule::header_field => Some(Header::try_from(pair)),
                             _ => None,
                         })
-                        .collect::<Result<Vec<Header>, Error>>()?,
+                        .collect::<Result<Vec<Header<Unprocessed>>, Error>>()?,
                     body: {
                         let pair = pairs.find_map(|pair| match pair.as_rule() {
                             Rule::request_body => Some(pair),
@@ -197,13 +217,14 @@ impl TryFrom<Pair<'_, Rule>> for Request {
     }
 }
 
-impl TryFrom<Pair<'_, Rule>> for RequestScript {
+impl TryFrom<Pair<'_, Rule>> for RequestScript<Unprocessed> {
     type Error = Error;
     fn try_from(pair: Pair<'_, Rule>) -> Result<Self, Error> {
         match pair.as_rule() {
             Rule::request_script => {
                 let mut pairs = pair.clone().into_inner();
                 Ok(RequestScript {
+                    selection: pair.as_span().into(),
                     request: Request::try_from(pair)?,
                     handler: {
                         let pair = pairs.find_map(|pair| match pair.as_rule() {
@@ -232,9 +253,26 @@ impl TryFrom<Pair<'_, Rule>> for File {
                     .into_inner()
                     .filter(|pair| pair.as_rule() == Rule::request_script)
                     .map(RequestScript::try_from)
-                    .collect::<Result<Vec<RequestScript>, Error>>()?,
+                    .collect::<Result<Vec<RequestScript<Unprocessed>>, Error>>()?,
             }),
             _ => Err(Error::invalid_pair(Rule::file, pair.as_rule())),
+        }
+    }
+}
+
+impl From<Span<'_>> for Selection {
+    fn from(span: Span<'_>) -> Self {
+        let (start_line, start_col) = span.start_pos().line_col();
+        let (end_line, end_col) = span.end_pos().line_col();
+        Selection {
+            start: Position {
+                line: start_line,
+                col: start_col,
+            },
+            end: Position {
+                line: end_line,
+                col: end_col,
+            },
         }
     }
 }

@@ -1,8 +1,16 @@
-use crate::scripter::{ExecuteError, ParseError, ScriptEngine};
-use crate::{Handler, RequestScript, Response};
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
-use std::fmt::{Display, Formatter};
+use crate::scripter::ExecuteError;
+use crate::scripter::ParseError;
+use crate::scripter::ScriptEngine;
+use crate::Handler;
+use crate::Processed;
+use crate::RequestScript;
+use crate::Response;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Map;
+use serde_json::Value;
+use std::fmt::Display;
+use std::fmt::Formatter;
 
 pub(crate) mod boa;
 
@@ -12,7 +20,7 @@ pub struct Error;
 impl std::error::Error for Error {}
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         unimplemented!()
     }
 }
@@ -28,6 +36,7 @@ impl From<ExecuteError> for Error {
         unimplemented!()
     }
 }
+
 pub(crate) trait ResponseHandler {
     type Engine: ScriptEngine;
     type Outputter: Outputter<Response = Self::Response>;
@@ -36,11 +45,15 @@ pub(crate) trait ResponseHandler {
     fn outputter(&mut self) -> &mut Self::Outputter;
     fn handle(
         &mut self,
-        request_script: &RequestScript,
+        request_script: &RequestScript<Processed>,
         response: Self::Response,
     ) -> Result<(), Error> {
         self.outputter().output_response(&response).unwrap();
-        if let Some(Handler { script }) = &request_script.handler {
+        if let Some(Handler {
+            script,
+            selection: _,
+        }) = &request_script.handler
+        {
             let script_response: ScriptResponse = response.into();
             self.inject(script_response)?;
             let expr = self.engine().parse(script.clone())?;

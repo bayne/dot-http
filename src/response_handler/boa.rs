@@ -1,4 +1,6 @@
-use crate::response_handler::{DefaultOutputter, DefaultResponse, ResponseHandler};
+use crate::response_handler::DefaultOutputter;
+use crate::response_handler::DefaultResponse;
+use crate::response_handler::ResponseHandler;
 use crate::scripter::boa::BoaScriptEngine;
 
 pub(crate) struct DefaultResponseHandler<'a> {

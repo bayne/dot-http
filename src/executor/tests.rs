@@ -5,20 +5,23 @@ use futures::executor::block_on;
 #[test]
 fn test_execute() {
     block_on(async {
-        let file = File {
-            request_scripts: vec![RequestScript {
-                request: Request {
-                    method: Method::Get,
-                    target: Value::WithoutInline("http://httpbin.org/get".to_string()),
-                    headers: vec![],
-                    body: None,
+        let script = RequestScript {
+            request: Request {
+                method: Method::Get(Selection::none()),
+                target: Value {
+                    state: Processed {
+                        value: "http://httpbin.org/get".to_string(),
+                    },
                 },
-                handler: None,
-            }],
+                headers: vec![],
+                body: None,
+                selection: Selection::none(),
+            },
+            handler: None,
+            selection: Selection::none(),
         };
-        let script = file.request_scripts.get(0).unwrap();
         let executor = Executor::new();
-        let res = executor.execute(script).await;
-//        dbg!(res).unwrap();
+        let res = executor.execute(&script).await;
+        dbg!(res).unwrap();
     });
 }

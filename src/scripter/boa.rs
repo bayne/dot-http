@@ -1,63 +1,48 @@
 use crate::scripter::{ExecuteError, ParseError, ScriptEngine};
 use crate::Error;
 use boa::builtins::value::ValueData;
-use boa::exec::{Executor, Interpreter};
+use boa::exec::Executor;
+use boa::exec::Interpreter;
 use boa::realm::Realm;
 use boa::syntax::ast::expr::Expr;
-use boa::syntax::ast::expr::ExprDef::{Block, Local, ObjectDecl, VarDecl};
-use boa::syntax::lexer::{Lexer, LexerError};
+use boa::syntax::ast::expr::ExprDef::Block;
+use boa::syntax::ast::expr::ExprDef::Local;
+use boa::syntax::ast::expr::ExprDef::ObjectDecl;
+use boa::syntax::ast::expr::ExprDef::VarDecl;
+use boa::syntax::lexer::Lexer;
+use boa::syntax::lexer::LexerError;
 use boa::syntax::parser::ParseError as BoaParseError;
 use boa::syntax::parser::Parser;
 use gc::Gc;
 use std::convert::From;
 
 impl From<LexerError> for Error {
-    fn from(e: LexerError) -> Self {
+    fn from(_e: LexerError) -> Self {
         unimplemented!()
-        //        Error {
-        //            kind: ErrorKind::ScriptRun,
-        //            message: format!("{}", e),
-        //        }
     }
 }
 
 impl From<LexerError> for ParseError {
-    fn from(e: LexerError) -> Self {
+    fn from(_e: LexerError) -> Self {
         unimplemented!()
-        //        Error {
-        //            kind: ErrorKind::ScriptRun,
-        //            message: format!("{}", e),
-        //        }
     }
 }
 
 impl From<Gc<ValueData>> for ExecuteError {
-    fn from(e: Gc<ValueData>) -> Self {
+    fn from(_e: Gc<ValueData>) -> Self {
         unimplemented!()
-        //        Error {
-        //            kind: ErrorKind::ScriptRun,
-        //            message: format!("{}", e),
-        //        }
     }
 }
 
 impl From<BoaParseError> for Error {
-    fn from(e: BoaParseError) -> Self {
+    fn from(_e: BoaParseError) -> Self {
         unimplemented!()
-        //        Error {
-        //            kind: ErrorKind::Parse,
-        //            message: format!("{:?}", e),
-        //        }
     }
 }
 
 impl From<BoaParseError> for ParseError {
-    fn from(e: BoaParseError) -> Self {
+    fn from(_e: BoaParseError) -> Self {
         unimplemented!()
-        //        Error {
-        //            kind: ErrorKind::Parse,
-        //            message: format!("{:?}", e),
-        //        }
     }
 }
 

@@ -1,4 +1,6 @@
 use super::*;
+use crate::Unprocessed::WithInline;
+use crate::Unprocessed::WithoutInline;
 
 #[test]
 fn test() {
@@ -147,11 +149,16 @@ fn test_parse() {
 
     let file = file.unwrap();
 
-    let expected = assert_eq!(format!("{:#?}", file), format!("{:#?}", expected));
+    assert_eq!(format!("{:#?}", file), format!("{:#?}", expected));
 }
 
 #[cfg(test)]
-pub(crate) fn test_file() -> (&'static str, &'static str, File, File) {
+pub(crate) fn test_file() -> (
+    &'static str,
+    &'static str,
+    File,
+    Vec<RequestScript<Processed>>,
+) {
     (
         "\
 var host = 'example';
@@ -187,116 +194,244 @@ Accept: */*
         File {
             request_scripts: vec![
                 RequestScript {
-                    handler: Some(Handler {
-                        script: "\
-console.log('Success!');
-
-    var a = \"what\"\
-                    "
-                        .to_string(),
-                    }),
                     request: Request {
-                        method: Post,
-                        target: Value::WithInline {
-                            value: "http://{{host}}.com".to_string(),
-                            inline_scripts: vec![InlineScript {
-                                script: "host".to_string(),
-                                placeholder: "{{host}}".to_string(),
-                            }],
+                        method: Post(Selection {
+                            start: Position { line: 4, col: 1 },
+                            end: Position { line: 4, col: 5 },
+                        }),
+                        target: Value {
+                            state: WithInline {
+                                value: "http://{{host}}.com".to_string(),
+                                inline_scripts: vec![InlineScript {
+                                    script: "host".to_string(),
+                                    placeholder: "{{host}}".to_string(),
+                                    selection: Selection {
+                                        start: Position { line: 4, col: 13 },
+                                        end: Position { line: 4, col: 21 },
+                                    },
+                                }],
+                                selection: Selection {
+                                    start: Position { line: 4, col: 6 },
+                                    end: Position { line: 4, col: 25 },
+                                },
+                            },
                         },
                         headers: vec![
                             Header {
                                 field_name: "Accept".to_string(),
-                                field_value: Value::WithoutInline("*#/*".to_string()),
+                                field_value: Value {
+                                    state: WithoutInline(
+                                        "*#/*".to_string(),
+                                        Selection {
+                                            start: Position { line: 5, col: 9 },
+                                            end: Position { line: 5, col: 13 },
+                                        },
+                                    ),
+                                },
+                                selection: Selection {
+                                    start: Position { line: 5, col: 1 },
+                                    end: Position { line: 5, col: 13 },
+                                },
                             },
                             Header {
                                 field_name: "Content-Type".to_string(),
-                                field_value: Value::WithInline {
-                                    value: "{{ content_type }}".to_string(),
-                                    inline_scripts: vec![InlineScript {
-                                        script: "content_type".to_string(),
-                                        placeholder: "{{ content_type }}".to_string(),
-                                    }],
+                                field_value: Value {
+                                    state: WithInline {
+                                        value: "{{ content_type }}".to_string(),
+                                        inline_scripts: vec![InlineScript {
+                                            script: "content_type".to_string(),
+                                            placeholder: "{{ content_type }}".to_string(),
+                                            selection: Selection {
+                                                start: Position { line: 7, col: 15 },
+                                                end: Position { line: 7, col: 33 },
+                                            },
+                                        }],
+                                        selection: Selection {
+                                            start: Position { line: 7, col: 15 },
+                                            end: Position { line: 7, col: 33 },
+                                        },
+                                    },
+                                },
+                                selection: Selection {
+                                    start: Position { line: 7, col: 1 },
+                                    end: Position { line: 7, col: 33 },
                                 },
                             },
                         ],
-                        body: Some(Value::WithoutInline(
-                            "\
-{
-    \"fieldA\": \"value1\"
-}\
-                    "
-                            .to_string(),
-                        )),
+                        body: Some(Value {
+                            state: WithoutInline(
+                                "{\n    \"fieldA\": \"value1\"\n}".to_string(),
+                                Selection {
+                                    start: Position { line: 9, col: 1 },
+                                    end: Position { line: 11, col: 2 },
+                                },
+                            ),
+                        }),
+                        selection: Selection {
+                            start: Position { line: 4, col: 1 },
+                            end: Position { line: 19, col: 4 },
+                        },
+                    },
+                    handler: Some(Handler {
+                        script: "console.log(\'Success!\');\n\n    var a = \"what\"".to_string(),
+                        selection: Selection {
+                            start: Position { line: 11, col: 2 },
+                            end: Position { line: 17, col: 3 },
+                        },
+                    }),
+                    selection: Selection {
+                        start: Position { line: 4, col: 1 },
+                        end: Position { line: 19, col: 4 },
                     },
                 },
                 RequestScript {
                     request: Request {
-                        method: Get,
-                        target: Value::WithInline {
-                            value: "http://example.com/{{url_param}}".to_string(),
-                            inline_scripts: vec![InlineScript {
-                                script: "url_param".to_string(),
-                                placeholder: "{{url_param}}".to_string(),
-                            }],
+                        method: Get(Selection {
+                            start: Position { line: 22, col: 1 },
+                            end: Position { line: 22, col: 4 },
+                        }),
+                        target: Value {
+                            state: WithInline {
+                                value: "http://example.com/{{url_param}}".to_string(),
+                                inline_scripts: vec![InlineScript {
+                                    script: "url_param".to_string(),
+                                    placeholder: "{{url_param}}".to_string(),
+                                    selection: Selection {
+                                        start: Position { line: 22, col: 24 },
+                                        end: Position { line: 22, col: 37 },
+                                    },
+                                }],
+                                selection: Selection {
+                                    start: Position { line: 22, col: 5 },
+                                    end: Position { line: 22, col: 37 },
+                                },
+                            },
                         },
                         headers: vec![Header {
                             field_name: "Accept".to_string(),
-                            field_value: Value::WithoutInline("*/*".to_string()),
+                            field_value: Value {
+                                state: WithoutInline(
+                                    "*/*".to_string(),
+                                    Selection {
+                                        start: Position { line: 23, col: 9 },
+                                        end: Position { line: 23, col: 12 },
+                                    },
+                                ),
+                            },
+                            selection: Selection {
+                                start: Position { line: 23, col: 1 },
+                                end: Position { line: 23, col: 12 },
+                            },
                         }],
                         body: None,
+                        selection: Selection {
+                            start: Position { line: 22, col: 1 },
+                            end: Position { line: 25, col: 1 },
+                        },
                     },
                     handler: None,
+                    selection: Selection {
+                        start: Position { line: 22, col: 1 },
+                        end: Position { line: 25, col: 1 },
+                    },
                 },
             ],
         },
-        File {
-            request_scripts: vec![
-                RequestScript {
-                    request: Request {
-                        method: Post,
-                        target: Value::WithoutInline("http://example.com".to_string()),
-                        headers: vec![
-                            Header {
-                                field_name: "Accept".to_string(),
-                                field_value: Value::WithoutInline("*#/*".to_string()),
-                            },
-                            Header {
-                                field_name: "Content-Type".to_string(),
-                                field_value: Value::WithoutInline("application/json".to_string()),
-                            },
-                        ],
-                        body: Some(Value::WithoutInline(
-                            "\
-{
-    \"fieldA\": \"value1\"
-}\
-                    "
-                            .to_string(),
-                        )),
-                    },
-                    handler: Some(Handler {
-                        script: "\
-console.log('Success!');
-
-    var a = \"what\"\
-                    "
-                        .to_string(),
+        vec![
+            RequestScript {
+                request: Request {
+                    method: Post(Selection {
+                        start: Position { line: 4, col: 1 },
+                        end: Position { line: 4, col: 5 },
                     }),
-                },
-                RequestScript {
-                    request: Request {
-                        method: Get,
-                        target: Value::WithoutInline("http://example.com/?query=id".to_string()),
-                        headers: vec![Header {
-                            field_name: "Accept".to_string(),
-                            field_value: Value::WithoutInline("*/*".to_string()),
-                        }],
-                        body: None,
+                    target: Value {
+                        state: Processed {
+                            value: "http://example.com".to_string(),
+                        },
                     },
-                    handler: None,
+                    headers: vec![
+                        Header {
+                            field_name: "Accept".to_string(),
+                            field_value: Value {
+                                state: Processed {
+                                    value: "*#/*".to_string(),
+                                },
+                            },
+                            selection: Selection {
+                                start: Position { line: 5, col: 1 },
+                                end: Position { line: 5, col: 13 },
+                            },
+                        },
+                        Header {
+                            field_name: "Content-Type".to_string(),
+                            field_value: Value {
+                                state: Processed {
+                                    value: "application/json".to_string(),
+                                },
+                            },
+                            selection: Selection {
+                                start: Position { line: 7, col: 1 },
+                                end: Position { line: 7, col: 33 },
+                            },
+                        },
+                    ],
+                    body: Some(Value {
+                        state: Processed {
+                            value: "{\n    \"fieldA\": \"value1\"\n}".to_string(),
+                        },
+                    }),
+                    selection: Selection {
+                        start: Position { line: 4, col: 1 },
+                        end: Position { line: 19, col: 4 },
+                    },
                 },
-            ],
-        },
+                handler: Some(Handler {
+                    script: "console.log(\'Success!\');\n\n    var a = \"what\"".to_string(),
+                    selection: Selection {
+                        start: Position { line: 11, col: 2 },
+                        end: Position { line: 17, col: 3 },
+                    },
+                }),
+                selection: Selection {
+                    start: Position { line: 4, col: 1 },
+                    end: Position { line: 19, col: 4 },
+                },
+            },
+            RequestScript {
+                request: Request {
+                    method: Get(Selection {
+                        start: Position { line: 22, col: 1 },
+                        end: Position { line: 22, col: 4 },
+                    }),
+                    target: Value {
+                        state: Processed {
+                            value: "http://example.com/?query=id".to_string(),
+                        },
+                    },
+                    headers: vec![Header {
+                        field_name: "Accept".to_string(),
+                        field_value: Value {
+                            state: Processed {
+                                value: "*/*".to_string(),
+                            },
+                        },
+                        selection: Selection {
+                            start: Position { line: 23, col: 1 },
+                            end: Position { line: 23, col: 12 },
+                        },
+                    }],
+                    body: None,
+                    selection: Selection {
+                        start: Position { line: 22, col: 1 },
+                        end: Position { line: 25, col: 1 },
+                    },
+                },
+                handler: None,
+                selection: Selection {
+                    start: Position { line: 22, col: 1 },
+                    end: Position { line: 25, col: 1 },
+                },
+            },
+        ],
     )
 }
