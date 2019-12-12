@@ -1,5 +1,4 @@
-use crate::scripter::{ExecuteError, ParseError, ScriptEngine};
-use crate::Error;
+use crate::scripter::{Error, Execute, Parse, ScriptEngine};
 use boa::builtins::value::ValueData;
 use boa::exec::Executor;
 use boa::exec::Interpreter;
@@ -16,31 +15,19 @@ use boa::syntax::parser::Parser;
 use gc::Gc;
 use std::convert::From;
 
-impl From<LexerError> for Error {
+impl From<LexerError> for Error<Parse> {
     fn from(_e: LexerError) -> Self {
         unimplemented!()
     }
 }
 
-impl From<LexerError> for ParseError {
-    fn from(_e: LexerError) -> Self {
-        unimplemented!()
-    }
-}
-
-impl From<Gc<ValueData>> for ExecuteError {
+impl From<Gc<ValueData>> for Error<Execute> {
     fn from(_e: Gc<ValueData>) -> Self {
         unimplemented!()
     }
 }
 
-impl From<BoaParseError> for Error {
-    fn from(_e: BoaParseError) -> Self {
-        unimplemented!()
-    }
-}
-
-impl From<BoaParseError> for ParseError {
+impl From<BoaParseError> for Error<Parse> {
     fn from(_e: BoaParseError) -> Self {
         unimplemented!()
     }
@@ -62,18 +49,18 @@ impl ScriptEngine for BoaScriptEngine {
     type Expression = Expr;
     type EnvExpression = Expr;
 
-    fn execute(&mut self, expression: Self::Expression) -> Result<String, ExecuteError> {
+    fn execute(&mut self, expression: Self::Expression) -> Result<String, Error<Execute>> {
         Ok(self.engine.run(&expression)?.to_string())
     }
 
-    fn parse(&mut self, script: String) -> Result<Self::Expression, ParseError> {
+    fn parse(&mut self, script: String) -> Result<Self::Expression, Error<Parse>> {
         let mut lexer = Lexer::new(script.as_str());
         lexer.lex()?;
         let tokens = lexer.tokens;
         Ok(Parser::new(tokens).parse_all()?)
     }
 
-    fn parse_env(&mut self, script: String) -> Result<Self::EnvExpression, ParseError> {
+    fn parse_env(&mut self, script: String) -> Result<Self::EnvExpression, Error<Parse>> {
         let env_file = self.parse(String::from(script.as_str()))?;
         //            .map_err(|err| ErrorKind::CannotParseEnvFile(err))?;
         let env_file = match &env_file {
@@ -82,10 +69,10 @@ impl ScriptEngine for BoaScriptEngine {
                     def: expr @ ObjectDecl(_),
                 }] => Ok(expr),
                 //                _ => Err(ErrorKind::InvalidEnvFile(env_file)),
-                _ => Err(ParseError {}),
+                _ => Err(Error { kind: Parse {} }),
             },
             //            _ => Err(ErrorKind::InvalidEnvFile(env_file)),
-            _ => Err(ParseError {}),
+            _ => Err(Error { kind: Parse {} }),
         }?;
 
         Ok(Expr {
@@ -104,7 +91,7 @@ impl ScriptEngine for BoaScriptEngine {
         &mut self,
         expression: Self::EnvExpression,
         env: String,
-    ) -> Result<String, ExecuteError> {
+    ) -> Result<String, Error<Execute>> {
         self.engine.run(&expression)?;
         let env = {
             let env = self.parse(env).unwrap();
@@ -112,9 +99,9 @@ impl ScriptEngine for BoaScriptEngine {
                 Block(expr) => match &expr[..] {
                     [Expr { def: Local(expr) }] => Ok(expr.clone()),
                     //                    _ => Err(ErrorKind::UnexpectedEnvironment(env)),
-                    _ => Err(ExecuteError {}),
+                    _ => Err(Error { kind: Execute {} }),
                 },
-                _ => Err(ExecuteError {}),
+                _ => Err(Error { kind: Execute {} }),
                 //                _ => Err(ErrorKind::UnexpectedEnvironment(env)),
             }?
         };

@@ -5,7 +5,7 @@ name = "dot_http"
 version = "0.1.0"
 
 [dependencies]
-Boa = { git = "https://github.com/bayne/boa", branch = "lexer-err" }
+Boa = "0.5.1"
 surf = "1.0.2"
 pest = "2.1.2"
 pest_derive = "2.1.0"

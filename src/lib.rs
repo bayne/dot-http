@@ -4,144 +4,123 @@ extern crate pest_derive;
 #[macro_use]
 extern crate pest;
 
-use crate::scripter::ParseError;
-use boa::syntax::ast::expr::Expr;
-use surf::Exception;
-
-pub mod commands;
-mod executor;
+mod http_client;
 mod parser;
+mod request_script;
 mod response_handler;
 mod scripter;
 
+use crate::http_client::execute;
+use crate::parser::parse;
+use crate::request_script::*;
+use crate::response_handler::boa::DefaultResponseHandler;
+use crate::response_handler::{DefaultOutputter, ResponseHandler};
+use crate::scripter::boa::BoaScriptEngine;
+use crate::scripter::{Parse, Processable, ScriptEngine};
+use futures::executor::block_on;
+use serde::export::Formatter;
+use std::fs::read_to_string;
+
+pub struct Config {
+    pub env_file: String,
+}
+
+pub struct Parameters {
+    pub script_file: String,
+    pub offset: usize,
+    pub env: String,
+}
+
 #[derive(Debug)]
 pub struct Error {
-    pub kind: ErrorKind,
-    pub message: String,
+    kind: ErrorKind,
 }
 
 #[derive(Debug)]
 pub enum ErrorKind {
-    Parse,
-    ScriptRun,
-    InvalidPair,
-    UnexpectedMethod,
-    InvalidRequest,
-    InvalidHeader,
-    RequestFailed(Exception),
     MissingArgument(&'static str),
     CannotReadEnvFile(std::io::Error),
-    CannotParseEnvFile(ParseError),
-    InvalidEnvFile(Expr),
+    CannotParseEnvFile(scripter::Error<Parse>),
+    //    InvalidEnvFile(Expr),
     CannotReadRequestScriptFile(std::io::Error),
-    UnexpectedEnvironment(Expr),
+    //    UnexpectedEnvironment(Expr),
 }
 
 impl std::error::Error for Error {}
-
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.message)
+    fn fmt(&self, _jf: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        unimplemented!()
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-struct Selection {
-    start: Position,
-    end: Position,
+impl<T> From<scripter::Error<T>> for Error {
+    fn from(_: scripter::Error<T>) -> Self {
+        unimplemented!()
+    }
 }
 
-#[cfg(test)]
-impl Selection {
-    pub fn none() -> Selection {
-        Selection {
-            start: Position { line: 0, col: 0 },
-            end: Position { line: 0, col: 0 },
+impl From<parser::Error> for Error {
+    fn from(_: parser::Error) -> Self {
+        unimplemented!()
+    }
+}
+
+pub struct DotHttp {
+    engine: BoaScriptEngine,
+    response_handler: DefaultResponseHandler,
+    config: Config,
+}
+
+impl DotHttp {
+    pub fn new(config: Config) -> DotHttp {
+        let outputter: DefaultOutputter = DefaultOutputter::new();
+        DotHttp {
+            config,
+            engine: BoaScriptEngine::new(),
+            response_handler: DefaultResponseHandler::new(outputter),
         }
     }
+    pub fn execute(&mut self, parameters: Parameters) -> Result<(), Error> {
+        let file = read_to_string(parameters.script_file.clone()).map_err(|err| Error {
+            kind: ErrorKind::CannotReadRequestScriptFile(err),
+        })?;
+        let file = &mut parse(file.as_str())?;
+
+        let env_file = read_to_string(self.config.env_file.clone()).map_err(|err| Error {
+            kind: ErrorKind::CannotReadEnvFile(err),
+        })?;
+
+        let engine = &mut self.engine;
+        let env_file = engine.parse_env(env_file).map_err(|err| Error {
+            kind: ErrorKind::CannotParseEnvFile(err),
+        })?;
+        engine
+            .execute_env(env_file, parameters.env)
+            .unwrap_or_default();
+        let request_script = file.request_script(parameters.offset);
+        let request_script = request_script.process(engine)?;
+
+        let response = block_on(async {
+            let executable_result = execute(&request_script.request);
+            executable_result.await.unwrap()
+        });
+
+        self.response_handler
+            .handle(engine, &request_script, response.into())
+            .unwrap();
+
+        Ok(())
+    }
 }
 
-#[derive(Debug, PartialEq, Clone)]
-struct Position {
-    line: usize,
-    col: usize,
-}
-
-#[derive(Debug)]
-struct File {
-    request_scripts: Vec<RequestScript<Unprocessed>>,
-}
-
-#[derive(Debug)]
-struct RequestScript<S> {
-    request: Request<S>,
-    handler: Option<Handler>,
-    selection: Selection,
-}
-
-#[derive(Debug)]
-struct Request<S> {
-    method: Method,
-    target: Value<S>,
-    headers: Vec<Header<S>>,
-    body: Option<Value<S>>,
-    selection: Selection,
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub(crate) enum Method {
-    Get(Selection),
-    Post(Selection),
-    Delete(Selection),
-    Put(Selection),
-    Patch(Selection),
-}
-
-#[derive(Debug)]
-struct Header<S> {
-    field_name: String,
-    field_value: Value<S>,
-    selection: Selection,
-}
-
-#[derive(Debug, Clone)]
-struct Handler {
-    script: String,
-    selection: Selection,
-}
-
-#[derive(Debug)]
-struct Value<S> {
-    state: S,
-}
-
-#[derive(Debug)]
-struct Processed {
-    value: String,
-}
-
-#[derive(Debug)]
-enum Unprocessed {
-    WithInline {
-        value: String,
-        inline_scripts: Vec<InlineScript>,
-        selection: Selection,
-    },
-    WithoutInline(String, Selection),
-}
-
-#[derive(Debug)]
-struct InlineScript {
-    script: String,
-    placeholder: String,
-    selection: Selection,
-}
-
-#[derive(Debug)]
-struct Response {
-    version: String,
-    status_code: u16,
-    status: String,
-    headers: Vec<(String, String)>,
-    body: String,
+impl File {
+    fn request_script(&self, offset: usize) -> &RequestScript<Unprocessed> {
+        self.request_scripts
+            .iter()
+            .find(|request_script| {
+                request_script.selection.start.line <= offset
+                    && request_script.selection.end.line > offset
+            })
+            .unwrap()
+    }
 }

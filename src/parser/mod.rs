@@ -1,17 +1,10 @@
 extern crate pest;
 
 #[cfg(test)]
-pub(crate) mod tests;
+pub mod tests;
 
-use crate::ErrorKind::*;
-use crate::Method::Delete;
-use crate::Method::Get;
-use crate::Method::Patch;
-use crate::Method::Post;
-use crate::Method::Put;
-use crate::Unprocessed::WithInline;
-use crate::Unprocessed::WithoutInline;
-use crate::*;
+use crate::parser::ErrorKind::{InvalidPair, UnexpectedMethod};
+use crate::request_script::*;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest::Span;
@@ -20,6 +13,22 @@ use std::convert::TryFrom;
 #[derive(Parser)]
 #[grammar = "parser/parser.pest"]
 struct ScriptParser;
+
+#[derive(Debug)]
+pub struct Error {
+    pub kind: ErrorKind,
+    pub message: String,
+}
+
+#[derive(Debug)]
+pub enum ErrorKind {
+    Parse,
+    ScriptRun,
+    InvalidPair,
+    UnexpectedMethod,
+    InvalidRequest,
+    InvalidHeader,
+}
 
 impl Error {
     fn invalid_pair(expected: Rule, got: Rule) -> Error {
@@ -74,11 +83,11 @@ impl TryFrom<Pair<'_, Rule>> for Method {
         let selection = pair.as_span().into();
         match pair.as_rule() {
             Rule::method => match pair.as_str() {
-                "GET" => Ok(Get(selection)),
-                "POST" => Ok(Post(selection)),
-                "DELETE" => Ok(Delete(selection)),
-                "PUT" => Ok(Put(selection)),
-                "PATCH" => Ok(Patch(selection)),
+                "GET" => Ok(Method::Get(selection)),
+                "POST" => Ok(Method::Post(selection)),
+                "DELETE" => Ok(Method::Delete(selection)),
+                "PUT" => Ok(Method::Put(selection)),
+                "PATCH" => Ok(Method::Patch(selection)),
                 _ => Err(Error {
                     kind: UnexpectedMethod,
                     message: format!("Unsupported method: {}", pair.as_str()),
@@ -106,7 +115,7 @@ impl TryFrom<Pair<'_, Rule>> for Value<Unprocessed> {
 
                 if !inline_scripts.is_empty() {
                     Ok(Value {
-                        state: WithInline {
+                        state: Unprocessed::WithInline {
                             value: string.to_string(),
                             inline_scripts,
                             selection,
@@ -114,7 +123,7 @@ impl TryFrom<Pair<'_, Rule>> for Value<Unprocessed> {
                     })
                 } else {
                     Ok(Value {
-                        state: WithoutInline(string.to_string(), selection),
+                        state: Unprocessed::WithoutInline(string.to_string(), selection),
                     })
                 }
             }
@@ -277,7 +286,7 @@ impl From<Span<'_>> for Selection {
     }
 }
 
-pub(crate) fn parse(source: &str) -> Result<File, Error> {
+pub fn parse(source: &str) -> Result<File, Error> {
     Ok(ScriptParser::parse(Rule::file, source)?
         .map(File::try_from)
         .last()

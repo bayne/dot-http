@@ -1,66 +1,51 @@
-use crate::Header;
-use crate::Processed;
-use crate::Request;
-use crate::RequestScript;
-use crate::Unprocessed;
-use crate::Unprocessed::WithInline;
-use crate::Unprocessed::WithoutInline;
-use crate::Value;
+use crate::request_script::*;
 use std::convert::From;
+use std::fmt::{Debug, Formatter};
 
-pub(crate) mod boa;
+pub mod boa;
 
 #[cfg(test)]
 mod tests;
 
-impl From<ParseError> for ScriptError {
-    fn from(_e: ParseError) -> Self {
-        unimplemented!()
-    }
-}
-
-impl From<ExecuteError> for ScriptError {
-    fn from(_e: ExecuteError) -> Self {
-        unimplemented!()
-    }
-}
+#[derive(Debug)]
+pub struct Script;
+#[derive(Debug)]
+pub struct Execute;
+#[derive(Debug)]
+pub struct Parse;
 
 #[derive(Debug)]
-pub struct ScriptError;
-#[derive(Debug)]
-pub struct ExecuteError;
-#[derive(Debug)]
-pub struct ParseError;
+pub struct Error<K> {
+    kind: K,
+}
 
-impl std::error::Error for ScriptError {}
-impl std::fmt::Display for ScriptError {
-    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl<T: Debug> std::error::Error for Error<T> {}
+impl<T: Debug> std::fmt::Display for Error<T> {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         unimplemented!()
     }
 }
 
-impl std::error::Error for ExecuteError {}
-impl std::fmt::Display for ExecuteError {
-    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl From<Error<Parse>> for Error<Script> {
+    fn from(_: Error<Parse>) -> Self {
         unimplemented!()
     }
 }
 
-impl std::error::Error for ParseError {}
-impl std::fmt::Display for ParseError {
-    fn fmt(&self, _f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl From<Error<Execute>> for Error<Script> {
+    fn from(_: Error<Execute>) -> Self {
         unimplemented!()
     }
 }
 
 pub trait Processable<T: ScriptEngine> {
     type Output;
-    fn process(&self, _engine: &mut T) -> Result<Self::Output, ScriptError>;
+    fn process(&self, _engine: &mut T) -> Result<Self::Output, Error<Script>>;
 }
 
 impl<T: ScriptEngine> Processable<T> for RequestScript<Unprocessed> {
     type Output = RequestScript<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, ScriptError> {
+    fn process(&self, engine: &mut T) -> Result<Self::Output, Error<Script>> {
         Ok(RequestScript {
             request: self.request.process(engine)?,
             handler: self.handler.clone(),
@@ -71,7 +56,7 @@ impl<T: ScriptEngine> Processable<T> for RequestScript<Unprocessed> {
 
 impl<T: ScriptEngine> Processable<T> for Request<Unprocessed> {
     type Output = Request<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, ScriptError> {
+    fn process(&self, engine: &mut T) -> Result<Self::Output, Error<Script>> {
         let mut headers = vec![];
         for header in &self.headers {
             headers.push(header.process(engine)?);
@@ -94,7 +79,7 @@ impl<T: ScriptEngine> Processable<T> for Request<Unprocessed> {
 
 impl<T: ScriptEngine> Processable<T> for Header<Unprocessed> {
     type Output = Header<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, ScriptError> {
+    fn process(&self, engine: &mut T) -> Result<Self::Output, Error<Script>> {
         Ok(Header {
             field_name: self.field_name.clone(),
             field_value: self.field_value.process(engine)?,
@@ -107,22 +92,22 @@ pub trait ScriptEngine {
     type Expression;
     type EnvExpression;
 
-    fn execute(&mut self, expression: Self::Expression) -> Result<String, ExecuteError>;
-    fn parse(&mut self, script: String) -> Result<Self::Expression, ParseError>;
-    fn parse_env(&mut self, script: String) -> Result<Self::EnvExpression, ParseError>;
+    fn execute(&mut self, expression: Self::Expression) -> Result<String, Error<Execute>>;
+    fn parse(&mut self, script: String) -> Result<Self::Expression, Error<Parse>>;
+    fn parse_env(&mut self, script: String) -> Result<Self::EnvExpression, Error<Parse>>;
     fn execute_env(
         &mut self,
         expression: Self::EnvExpression,
         env: String,
-    ) -> Result<String, ExecuteError>;
+    ) -> Result<String, Error<Execute>>;
 }
 
 impl<E, T: ScriptEngine<Expression = E>> Processable<T> for Value<Unprocessed> {
     type Output = Value<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, ScriptError> {
+    fn process(&self, engine: &mut T) -> Result<Self::Output, Error<Script>> {
         if let Value {
             state:
-                WithInline {
+                Unprocessed::WithInline {
                     value,
                     inline_scripts,
                     selection: _selection,
@@ -137,7 +122,7 @@ impl<E, T: ScriptEngine<Expression = E>> Processable<T> for Value<Unprocessed> {
                         engine.parse(inline_script.script.clone())?,
                     ))
                 })
-                .collect::<Result<Vec<(&String, E)>, ParseError>>()?;
+                .collect::<Result<Vec<(&String, E)>, Error<Parse>>>()?;
 
             let mut interpolated = value.clone();
             for (placeholder, expr) in evaluated {
@@ -153,7 +138,7 @@ impl<E, T: ScriptEngine<Expression = E>> Processable<T> for Value<Unprocessed> {
         }
 
         if let Value {
-            state: WithoutInline(value, _),
+            state: Unprocessed::WithoutInline(value, _),
         } = self
         {
             return Ok(Value {
@@ -162,6 +147,6 @@ impl<E, T: ScriptEngine<Expression = E>> Processable<T> for Value<Unprocessed> {
                 },
             });
         }
-        Err(ScriptError {})
+        Err(Error { kind: Script {} })
     }
 }

@@ -1,4 +1,5 @@
 use super::*;
+use crate::request_script::Method::{Get, Post};
 use crate::Unprocessed::WithInline;
 use crate::Unprocessed::WithoutInline;
 

@@ -1,8 +1,9 @@
-use crate::executor::Executor;
+use crate::http_client::execute;
 use crate::*;
 use futures::executor::block_on;
 
 #[test]
+#[ignore]
 fn test_execute() {
     block_on(async {
         let script = RequestScript {
@@ -20,8 +21,7 @@ fn test_execute() {
             handler: None,
             selection: Selection::none(),
         };
-        let executor = Executor::new();
-        let res = executor.execute(&script).await;
+        let res = execute(&script.request).await;
         dbg!(res).unwrap();
     });
 }
