@@ -1,5 +1,5 @@
 use super::*;
-use crate::request_script::Method::{Get, Post};
+use crate::model::Method::{Get, Post};
 use crate::Unprocessed::WithInline;
 use crate::Unprocessed::WithoutInline;
 
@@ -129,7 +129,6 @@ GET http://{{host}}.com HTTP/1.1
 Accept: */*
 Content-Type: {{ content_type }}
 Content-Type2: {{ content_type2 }}
-
 ";
     let request = ScriptParser::parse(Rule::request, test);
     if let Err(e) = &request {

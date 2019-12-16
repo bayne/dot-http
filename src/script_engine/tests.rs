@@ -1,12 +1,14 @@
 use crate::parser::tests::test_file;
-use crate::scripter::boa::BoaScriptEngine;
-use crate::scripter::{Processable, ScriptEngine};
+use crate::script_engine::boa::BoaScriptEngine;
+use crate::script_engine::{Processable, Script, ScriptEngine};
 use crate::{Processed, RequestScript};
 
 #[cfg(test)]
 fn setup(src: &'static str) -> BoaScriptEngine {
     let mut engine = BoaScriptEngine::new();
-    let expr = engine.parse(String::from(src)).unwrap();
+    let expr = engine
+        .parse(Script::internal_script(String::from(src)))
+        .unwrap();
     engine.execute(expr).unwrap();
     return engine;
 }

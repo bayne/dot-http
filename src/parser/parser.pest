@@ -23,7 +23,7 @@ request_body = ${ (!request_separator ~ !request_handler_start ~ (inline_script 
 request_handler = ${ !request_separator ~ request_handler_start ~ handler_script }
 request_handler_start = _{ CRLF{2,} ~ "> "}
 
-request = _{ request_line ~ (header_field ~ CRLF)* ~ CRLF }
+request = _{ request_line ~ (header_field ~ CRLF)* ~ (CRLF | EOI) }
 
 request_line = _{ method ~ SP ~ request_target ~ (SP ~ http_version)? ~ CRLF }
 method = { ASCII_ALPHA_UPPER{3,} }

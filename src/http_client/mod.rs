@@ -1,4 +1,4 @@
-use crate::request_script::*;
+use crate::model::*;
 use std::fmt::Formatter;
 use surf::middleware::HttpClient;
 use surf::{http, url, Exception};
@@ -69,37 +69,39 @@ fn set_body<E: std::error::Error + Send + Sync, C: HttpClient<Error = E>>(
     request
 }
 
-pub async fn execute(request: &Request<Processed>) -> Result<Response, Error> {
-    let Request {
-        method,
-        target: Value {
-            state: Processed { value: target },
-        },
-        headers,
-        body,
-        selection: _selection,
-    } = &request;
+impl Request<Processed> {
+    pub async fn execute(&self) -> Result<Response, Error> {
+        let Request {
+            method,
+            target: Value {
+                state: Processed { value: target },
+            },
+            headers,
+            body,
+            selection: _selection,
+        } = &self;
 
-    let url = url::Url::parse(target)?;
-    let request = surf::Request::new(method.into(), url);
-    let request = set_headers(headers, request);
-    let request = set_body(body, request);
+        let url = url::Url::parse(target)?;
+        let request = surf::Request::new(method.into(), url);
+        let request = set_headers(headers, request);
+        let request = set_body(body, request);
 
-    let mut response = request.await.map_err(|e| Error {
-        kind: ErrorKind::RequestFailed(e),
-    })?;
-    let response_body = response.body_string().await.map_err(|e| Error {
-        kind: ErrorKind::RequestBodyFailed(e),
-    })?;
-    Ok(Response {
-        status: format!("{}", response.status()),
-        status_code: response.status().as_u16(),
-        version: format!("{:?}", response.version()),
-        headers: response
-            .headers()
-            .iter()
-            .map(|(key, value)| (key.to_string(), value.to_string()))
-            .collect(),
-        body: response_body,
-    })
+        let mut response = request.await.map_err(|e| Error {
+            kind: ErrorKind::RequestFailed(e),
+        })?;
+        let response_body = response.body_string().await.map_err(|e| Error {
+            kind: ErrorKind::RequestBodyFailed(e),
+        })?;
+        Ok(Response {
+            status: format!("{}", response.status()),
+            status_code: response.status().as_u16(),
+            version: format!("{:?}", response.version()),
+            headers: response
+                .headers()
+                .iter()
+                .map(|(key, value)| (key.to_string(), value.to_string()))
+                .collect(),
+            body: response_body,
+        })
+    }
 }

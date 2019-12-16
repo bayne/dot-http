@@ -1,4 +1,3 @@
-use crate::http_client::execute;
 use crate::*;
 use futures::executor::block_on;
 
@@ -21,7 +20,7 @@ fn test_execute() {
             handler: None,
             selection: Selection::none(),
         };
-        let res = execute(&script.request).await;
+        let res = script.request.execute().await;
         dbg!(res).unwrap();
     });
 }

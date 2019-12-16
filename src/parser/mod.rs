@@ -3,8 +3,9 @@ extern crate pest;
 #[cfg(test)]
 pub mod tests;
 
+use crate::model::*;
 use crate::parser::ErrorKind::{InvalidPair, UnexpectedMethod};
-use crate::request_script::*;
+use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest::Span;
@@ -18,6 +19,7 @@ struct ScriptParser;
 pub struct Error {
     pub kind: ErrorKind,
     pub message: String,
+    pub selection: Selection,
 }
 
 #[derive(Debug)]
@@ -35,6 +37,28 @@ impl Error {
         Error {
             kind: InvalidPair,
             message: format!("Wrong pair. Expected: {:?}, Got: {:?}", expected, got),
+            selection: Selection::none(),
+        }
+    }
+}
+
+impl From<LineColLocation> for Selection {
+    fn from(line_col_location: LineColLocation) -> Self {
+        match line_col_location {
+            LineColLocation::Pos((line, col)) => Selection {
+                start: Position { line, col },
+                end: Position { line, col },
+            },
+            LineColLocation::Span((start_line, start_col), (end_line, end_col)) => Selection {
+                start: Position {
+                    line: start_line,
+                    col: start_col,
+                },
+                end: Position {
+                    line: end_line,
+                    col: end_col,
+                },
+            },
         }
     }
 }
@@ -44,6 +68,7 @@ impl From<pest::error::Error<Rule>> for Error {
         Error {
             message: e.to_string(),
             kind: ErrorKind::Parse,
+            selection: e.line_col.into(),
         }
     }
 }
@@ -91,6 +116,7 @@ impl TryFrom<Pair<'_, Rule>> for Method {
                 _ => Err(Error {
                     kind: UnexpectedMethod,
                     message: format!("Unsupported method: {}", pair.as_str()),
+                    selection,
                 }),
             },
             _ => Err(Error::invalid_pair(Rule::method, pair.as_rule())),

@@ -8,10 +8,13 @@ Cache-Control: no-cache
 TE: Trailers
 Content-Type: application/x-www-form-urlencoded
 
-{}
+{
+  "awesome": "{{ test }}"
+}
 
 > {%
-    console.log(response.body.headers["User-Agent"]);
+    client.global.set("test", response.body.headers['User-Agent']);
+    console.log(client.global.get("test"));
 %}
 
 ###
@@ -25,4 +28,3 @@ Pragma: no-cache
 Cache-Control: no-cache
 TE: Trailers
 Content-Type: application/x-www-form-urlencoded
-
