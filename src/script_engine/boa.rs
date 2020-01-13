@@ -1,4 +1,7 @@
 use crate::model::Selection;
+use crate::script_engine::ErrorKind::{
+    CouldNotExecute, CouldNotParseEnv, CouldNotParseInitializeObject,
+};
 use crate::script_engine::{Error, ErrorKind, Expression, Script, ScriptEngine};
 use boa::builtins::value::ValueData;
 use boa::exec::Executor;
@@ -18,24 +21,6 @@ use gc::Gc;
 use serde_json::{to_string_pretty, Map};
 use serde_json::{Number as JSONNumber, Value as JSONValue};
 use std::convert::From;
-
-impl From<LexerError> for Error {
-    fn from(_e: LexerError) -> Self {
-        unimplemented!()
-    }
-}
-
-impl From<Gc<ValueData>> for Error {
-    fn from(_e: Gc<ValueData>) -> Self {
-        unimplemented!()
-    }
-}
-
-impl From<BoaParseError> for Error {
-    fn from(_e: BoaParseError) -> Self {
-        unimplemented!()
-    }
-}
 
 pub struct BoaScriptEngine {
     engine: Interpreter,
@@ -96,7 +81,17 @@ impl ScriptEngine for BoaScriptEngine {
     }
 
     fn execute(&mut self, expression: Expression<Self::Expr>) -> Result<String, Error> {
-        Ok(self.engine.run(&expression.expr)?.to_string())
+        Ok(self
+            .engine
+            .run(&expression.expr)
+            .map_err(|err| {
+                dbg!(&err);
+                Error {
+                    selection: expression.selection,
+                    kind: CouldNotExecute,
+                }
+            })?
+            .to_string())
     }
 
     fn parse(&mut self, script: Script) -> Result<Expression<Self::Expr>, Error> {
@@ -105,11 +100,11 @@ impl ScriptEngine for BoaScriptEngine {
             selection,
         } = script;
         let mut lexer = Lexer::new(script.as_str());
-        lexer.lex()?;
+        lexer.lex().unwrap();
         let tokens = lexer.tokens;
         Ok(Expression {
             selection,
-            expr: Parser::new(tokens).parse_all()?,
+            expr: Parser::new(tokens).parse_all().unwrap(),
         })
     }
 
@@ -125,18 +120,6 @@ impl ScriptEngine for BoaScriptEngine {
     ) -> Result<(), Error> {
         let env_file = declare_object(self, env_script, "_env_file")?;
         self.engine.run(&env_file).unwrap();
-
-        let env = {
-            let Expression { expr: env_expr, .. } =
-                self.parse(Script::internal_script(env.clone())).unwrap();
-            match &env_expr.def {
-                Block(expr) => match &expr[..] {
-                    [Expr { def: Local(expr) }] => Ok(expr.clone()),
-                    _ => Err(initialize_error(ErrorKind::CouldNotParseEnv(env))),
-                },
-                _ => Err(initialize_error(ErrorKind::CouldNotParseEnv(env))),
-            }?
-        };
 
         let env = format!("var _env = _env_file[\"{}\"];", env);
         let env = self.parse(Script::internal_script(env)).unwrap();
@@ -220,11 +203,6 @@ fn declare_object(
 fn initialize_error(kind: ErrorKind) -> Error {
     Error {
         selection: Selection::none(),
-        file: match &kind {
-            ErrorKind::CouldNotParseEnv(_) => "Input",
-            ErrorKind::CouldNotParseInitializeObject(file) => *file,
-        },
-        message: "Failed to initialize script engine",
         kind,
     }
 }

@@ -1,4 +1,25 @@
-POST http://httpbin.org/post
+POST http://httpbin.org/status/400
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:69.0) Gecko/20100101 Firefox/69.0
+Accept: */*
+Accept-Language: en-US,en;q=0.5
+Connection: keep-alive
+Pragma: no-cache
+Cache-Control: no-cache
+TE: Trailers
+Content-Type: application/json
+
+{
+  "awesome": "{{ test }}"
+}
+
+> {%
+    client.global.dset("test", response.body.headers['User-Agent']);
+    console.log(client.global.get("test"));
+%}
+
+###
+
+GET http://httpbin.org/get
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:69.0) Gecko/20100101 Firefox/69.0
 Accept: */*
 Accept-Language: en-US,en;q=0.5
@@ -7,15 +28,6 @@ Pragma: no-cache
 Cache-Control: no-cache
 TE: Trailers
 Content-Type: application/x-www-form-urlencoded
-
-{
-  "awesome": "{{ test }}"
-}
-
-> {%
-    client.global.set("test", response.body.headers['User-Agent']);
-    console.log(client.global.get("test"));
-%}
 
 ###
 

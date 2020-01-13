@@ -1,26 +1,28 @@
 use crate::*;
-use futures::executor::block_on;
+use http_test_server::TestServer;
 
 #[test]
-#[ignore]
 fn test_execute() {
-    block_on(async {
-        let script = RequestScript {
-            request: Request {
-                method: Method::Get(Selection::none()),
-                target: Value {
-                    state: Processed {
-                        value: "http://httpbin.org/get".to_string(),
-                    },
+    let server = TestServer::new().unwrap();
+    let resource = server.create_resource("/defaults");
+    let requests = server.requests();
+
+    let script = RequestScript {
+        request: Request {
+            method: Method::Get(Selection::none()),
+            target: Value {
+                state: Processed {
+                    value: format_args!("http://localhost:{port}/defaults", port = server.port())
+                        .to_string(),
                 },
-                headers: vec![],
-                body: None,
-                selection: Selection::none(),
             },
-            handler: None,
+            headers: vec![],
+            body: None,
             selection: Selection::none(),
-        };
-        let res = script.request.execute().await;
-        dbg!(res).unwrap();
-    });
+        },
+        handler: None,
+        selection: Selection::none(),
+    };
+    let res = script.request.execute();
+    assert_eq!(200, res.status_code);
 }

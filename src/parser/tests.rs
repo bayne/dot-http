@@ -2,6 +2,7 @@ use super::*;
 use crate::model::Method::{Get, Post};
 use crate::Unprocessed::WithInline;
 use crate::Unprocessed::WithoutInline;
+use std::path::{Path, PathBuf};
 
 #[test]
 fn test() {
@@ -100,6 +101,18 @@ Accept: */*
 }
 
 #[test]
+fn test_min_file() {
+    let test = "POST http://example.com HTTP/1.1";
+
+    let file = ScriptParser::parse(Rule::file, test);
+    if let Err(e) = &file {
+        println!("{:?}", e);
+    }
+
+    assert!(file.is_ok());
+}
+
+#[test]
 fn test_request_script() {
     let test = "\
 GET http://{{host}}.com HTTP/1.1
@@ -139,9 +152,24 @@ Content-Type2: {{ content_type2 }}
 }
 
 #[test]
+fn test_request_handler() {
+    let test = "\
+> {%
+ console.log('hi');
+%}
+";
+    let handler = ScriptParser::parse(Rule::request_handler, test);
+    if let Err(e) = &handler {
+        println!("{:?}", e);
+    }
+
+    assert!(handler.is_ok());
+}
+
+#[test]
 fn test_parse() {
     let (_, test, expected, _) = test_file();
-    let file = parse(test);
+    let file = parse(Path::new("").to_path_buf(), test);
     if let Err(e) = &file {
         println!("{}", e.message);
     }
@@ -196,6 +224,7 @@ Accept: */*
                 RequestScript {
                     request: Request {
                         method: Post(Selection {
+                            filename: Path::new("").to_path_buf(),
                             start: Position { line: 4, col: 1 },
                             end: Position { line: 4, col: 5 },
                         }),
@@ -206,11 +235,13 @@ Accept: */*
                                     script: "host".to_string(),
                                     placeholder: "{{host}}".to_string(),
                                     selection: Selection {
+                                        filename: Path::new("").to_path_buf(),
                                         start: Position { line: 4, col: 13 },
                                         end: Position { line: 4, col: 21 },
                                     },
                                 }],
                                 selection: Selection {
+                                    filename: Path::new("").to_path_buf(),
                                     start: Position { line: 4, col: 6 },
                                     end: Position { line: 4, col: 25 },
                                 },
@@ -223,12 +254,14 @@ Accept: */*
                                     state: WithoutInline(
                                         "*#/*".to_string(),
                                         Selection {
+                                            filename: Path::new("").to_path_buf(),
                                             start: Position { line: 5, col: 9 },
                                             end: Position { line: 5, col: 13 },
                                         },
                                     ),
                                 },
                                 selection: Selection {
+                                    filename: Path::new("").to_path_buf(),
                                     start: Position { line: 5, col: 1 },
                                     end: Position { line: 5, col: 13 },
                                 },
@@ -242,17 +275,20 @@ Accept: */*
                                             script: "content_type".to_string(),
                                             placeholder: "{{ content_type }}".to_string(),
                                             selection: Selection {
+                                                filename: Path::new("").to_path_buf(),
                                                 start: Position { line: 7, col: 15 },
                                                 end: Position { line: 7, col: 33 },
                                             },
                                         }],
                                         selection: Selection {
+                                            filename: Path::new("").to_path_buf(),
                                             start: Position { line: 7, col: 15 },
                                             end: Position { line: 7, col: 33 },
                                         },
                                     },
                                 },
                                 selection: Selection {
+                                    filename: Path::new("").to_path_buf(),
                                     start: Position { line: 7, col: 1 },
                                     end: Position { line: 7, col: 33 },
                                 },
@@ -262,12 +298,14 @@ Accept: */*
                             state: WithoutInline(
                                 "{\n    \"fieldA\": \"value1\"\n}".to_string(),
                                 Selection {
+                                    filename: Path::new("").to_path_buf(),
                                     start: Position { line: 9, col: 1 },
                                     end: Position { line: 11, col: 2 },
                                 },
                             ),
                         }),
                         selection: Selection {
+                            filename: Path::new("").to_path_buf(),
                             start: Position { line: 4, col: 1 },
                             end: Position { line: 19, col: 4 },
                         },
@@ -275,11 +313,13 @@ Accept: */*
                     handler: Some(Handler {
                         script: "console.log(\'Success!\');\n\n    var a = \"what\"".to_string(),
                         selection: Selection {
-                            start: Position { line: 11, col: 2 },
+                            filename: Path::new("").to_path_buf(),
+                            start: Position { line: 13, col: 1 },
                             end: Position { line: 17, col: 3 },
                         },
                     }),
                     selection: Selection {
+                        filename: Path::new("").to_path_buf(),
                         start: Position { line: 4, col: 1 },
                         end: Position { line: 19, col: 4 },
                     },
@@ -287,6 +327,7 @@ Accept: */*
                 RequestScript {
                     request: Request {
                         method: Get(Selection {
+                            filename: Path::new("").to_path_buf(),
                             start: Position { line: 22, col: 1 },
                             end: Position { line: 22, col: 4 },
                         }),
@@ -297,11 +338,13 @@ Accept: */*
                                     script: "url_param".to_string(),
                                     placeholder: "{{url_param}}".to_string(),
                                     selection: Selection {
+                                        filename: Path::new("").to_path_buf(),
                                         start: Position { line: 22, col: 24 },
                                         end: Position { line: 22, col: 37 },
                                     },
                                 }],
                                 selection: Selection {
+                                    filename: Path::new("").to_path_buf(),
                                     start: Position { line: 22, col: 5 },
                                     end: Position { line: 22, col: 37 },
                                 },
@@ -313,24 +356,28 @@ Accept: */*
                                 state: WithoutInline(
                                     "*/*".to_string(),
                                     Selection {
+                                        filename: Path::new("").to_path_buf(),
                                         start: Position { line: 23, col: 9 },
                                         end: Position { line: 23, col: 12 },
                                     },
                                 ),
                             },
                             selection: Selection {
+                                filename: Path::new("").to_path_buf(),
                                 start: Position { line: 23, col: 1 },
                                 end: Position { line: 23, col: 12 },
                             },
                         }],
                         body: None,
                         selection: Selection {
+                            filename: Path::new("").to_path_buf(),
                             start: Position { line: 22, col: 1 },
                             end: Position { line: 25, col: 1 },
                         },
                     },
                     handler: None,
                     selection: Selection {
+                        filename: Path::new("").to_path_buf(),
                         start: Position { line: 22, col: 1 },
                         end: Position { line: 25, col: 1 },
                     },
@@ -341,6 +388,7 @@ Accept: */*
             RequestScript {
                 request: Request {
                     method: Post(Selection {
+                        filename: Path::new("").to_path_buf(),
                         start: Position { line: 4, col: 1 },
                         end: Position { line: 4, col: 5 },
                     }),
@@ -358,6 +406,7 @@ Accept: */*
                                 },
                             },
                             selection: Selection {
+                                filename: Path::new("").to_path_buf(),
                                 start: Position { line: 5, col: 1 },
                                 end: Position { line: 5, col: 13 },
                             },
@@ -370,6 +419,7 @@ Accept: */*
                                 },
                             },
                             selection: Selection {
+                                filename: Path::new("").to_path_buf(),
                                 start: Position { line: 7, col: 1 },
                                 end: Position { line: 7, col: 33 },
                             },
@@ -381,6 +431,7 @@ Accept: */*
                         },
                     }),
                     selection: Selection {
+                        filename: Path::new("").to_path_buf(),
                         start: Position { line: 4, col: 1 },
                         end: Position { line: 19, col: 4 },
                     },
@@ -388,11 +439,13 @@ Accept: */*
                 handler: Some(Handler {
                     script: "console.log(\'Success!\');\n\n    var a = \"what\"".to_string(),
                     selection: Selection {
+                        filename: Path::new("").to_path_buf(),
                         start: Position { line: 11, col: 2 },
                         end: Position { line: 17, col: 3 },
                     },
                 }),
                 selection: Selection {
+                    filename: Path::new("").to_path_buf(),
                     start: Position { line: 4, col: 1 },
                     end: Position { line: 19, col: 4 },
                 },
@@ -400,6 +453,7 @@ Accept: */*
             RequestScript {
                 request: Request {
                     method: Get(Selection {
+                        filename: Path::new("").to_path_buf(),
                         start: Position { line: 22, col: 1 },
                         end: Position { line: 22, col: 4 },
                     }),
@@ -416,18 +470,21 @@ Accept: */*
                             },
                         },
                         selection: Selection {
+                            filename: Path::new("").to_path_buf(),
                             start: Position { line: 23, col: 1 },
                             end: Position { line: 23, col: 12 },
                         },
                     }],
                     body: None,
                     selection: Selection {
+                        filename: Path::new("").to_path_buf(),
                         start: Position { line: 22, col: 1 },
                         end: Position { line: 25, col: 1 },
                     },
                 },
                 handler: None,
                 selection: Selection {
+                    filename: Path::new("").to_path_buf(),
                     start: Position { line: 22, col: 1 },
                     end: Position { line: 25, col: 1 },
                 },

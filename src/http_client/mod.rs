@@ -1,76 +1,86 @@
 use crate::model::*;
-use std::fmt::Formatter;
-use surf::middleware::HttpClient;
-use surf::{http, url, Exception};
+use reqwest::blocking::Body;
+use reqwest::blocking::RequestBuilder;
+use reqwest::blocking::Response as HttpResponse;
+use reqwest::{Method as HttpMethod, Version as HttpVersion};
 
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug)]
-pub struct Error {
-    kind: ErrorKind,
-}
-
-impl std::error::Error for Error {}
-impl std::fmt::Display for Error {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        unimplemented!()
-    }
-}
-
-#[derive(Debug)]
-enum ErrorKind {
-    RequestFailed(Exception),
-    RequestBodyFailed(Exception),
-}
-
-impl From<url::ParseError> for Error {
-    fn from(_e: url::ParseError) -> Self {
-        unimplemented!()
-    }
-}
-
-impl Into<http::method::Method> for &Method {
-    fn into(self) -> http::method::Method {
-        match self {
-            Method::Get(_) => http::Method::GET,
-            Method::Post(_) => http::Method::POST,
-            Method::Delete(_) => http::Method::DELETE,
-            Method::Put(_) => http::Method::PUT,
-            Method::Patch(_) => http::Method::PATCH,
-        }
-    }
-}
-
-fn set_headers<E: std::error::Error + Send + Sync, C: HttpClient<Error = E>>(
+fn set_headers(
     headers: &[Header<Processed>],
-    mut request: surf::Request<C>,
-) -> surf::Request<C> {
+    mut request_builder: RequestBuilder,
+) -> RequestBuilder {
     for header in headers {
         let Value {
             state: Processed { value: field_value },
         } = &header.field_value;
-        let field_name = Box::leak(header.field_name.clone().into_boxed_str());
-        request = request.set_header(field_name, field_value);
+        request_builder = request_builder.header(&header.field_name, field_value);
     }
-    request
+    request_builder
 }
 
-fn set_body<E: std::error::Error + Send + Sync, C: HttpClient<Error = E>>(
+impl From<&Method> for HttpMethod {
+    fn from(method: &Method) -> Self {
+        match method {
+            Method::Get(_) => HttpMethod::GET,
+            Method::Post(_) => HttpMethod::POST,
+            Method::Delete(_) => HttpMethod::DELETE,
+            Method::Put(_) => HttpMethod::PUT,
+            Method::Patch(_) => HttpMethod::PATCH,
+            Method::Options(_) => HttpMethod::OPTIONS,
+        }
+    }
+}
+
+impl From<HttpVersion> for Version {
+    fn from(version: HttpVersion) -> Self {
+        match version {
+            HttpVersion::HTTP_09 => Version::Http09,
+            HttpVersion::HTTP_2 => Version::Http2,
+            HttpVersion::HTTP_10 => Version::Http10,
+            HttpVersion::HTTP_11 => Version::Http11,
+            _ => panic!("Non-exhaustive"),
+        }
+    }
+}
+
+impl From<HttpResponse> for Response {
+    fn from(response: HttpResponse) -> Self {
+        Response {
+            version: response.version().into(),
+            status_code: response.status().as_u16(),
+            status: response.status().to_string(),
+            headers: response
+                .headers()
+                .iter()
+                .map(|(header_name, header_value)| {
+                    (
+                        header_name.to_string(),
+                        header_value.to_str().unwrap().to_string(),
+                    )
+                })
+                .collect(),
+            body: response.text().unwrap(),
+        }
+    }
+}
+
+fn set_body(
     body: &Option<Value<Processed>>,
-    mut request: surf::Request<C>,
-) -> surf::Request<C> {
+    mut request_builder: RequestBuilder,
+) -> RequestBuilder {
     if let Some(Value {
         state: Processed { value: body },
     }) = body
     {
-        request = request.body_string(body.clone());
+        request_builder = request_builder.body::<Body>(body.clone().into());
     }
-    request
+    request_builder
 }
 
 impl Request<Processed> {
-    pub async fn execute(&self) -> Result<Response, Error> {
+    pub fn execute(&self) -> Response {
         let Request {
             method,
             target: Value {
@@ -81,27 +91,12 @@ impl Request<Processed> {
             selection: _selection,
         } = &self;
 
-        let url = url::Url::parse(target)?;
-        let request = surf::Request::new(method.into(), url);
-        let request = set_headers(headers, request);
-        let request = set_body(body, request);
+        let client = reqwest::blocking::Client::new();
+        let mut request_builder = client.request(method.into(), target);
+        request_builder = set_headers(headers, request_builder);
+        request_builder = set_body(body, request_builder);
+        let response = request_builder.send().unwrap();
 
-        let mut response = request.await.map_err(|e| Error {
-            kind: ErrorKind::RequestFailed(e),
-        })?;
-        let response_body = response.body_string().await.map_err(|e| Error {
-            kind: ErrorKind::RequestBodyFailed(e),
-        })?;
-        Ok(Response {
-            status: format!("{}", response.status()),
-            status_code: response.status().as_u16(),
-            version: format!("{:?}", response.version()),
-            headers: response
-                .headers()
-                .iter()
-                .map(|(key, value)| (key.to_string(), value.to_string()))
-                .collect(),
-            body: response_body,
-        })
+        response.into()
     }
 }

@@ -10,19 +10,23 @@ use std::fmt::Formatter;
 pub mod boa;
 
 #[derive(Debug)]
-pub struct Error;
+pub struct Error {
+    message: String,
+}
 
 impl std::error::Error for Error {}
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
-        unimplemented!()
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", self.message))
     }
 }
 
 impl From<script_engine::Error> for Error {
-    fn from(_: script_engine::Error) -> Self {
-        unimplemented!()
+    fn from(e: script_engine::Error) -> Self {
+        Error {
+            message: e.to_string(),
+        }
     }
 }
 
@@ -113,6 +117,7 @@ impl Display for Method {
             Method::Delete(_) => "DELETE",
             Method::Put(_) => "PUT",
             Method::Patch(_) => "PATCH",
+            Method::Options(_) => "OPTIONS",
         };
         f.write_str(method)
     }
