@@ -18,7 +18,7 @@ inline_script_string = { inline_script_string_character* }
 inline_script_string_character = _{ !inline_script_end ~ !"{{" ~ ANY}
 inline_script_end = _{ SP* ~ "}}" }
 
-request_script = { request ~ (CRLF ~ request_body)? ~ (CRLF{2,} ~ request_handler)? }
+request_script = { request ~ (CRLF ~ request_body)? ~ (CRLF+ ~ request_handler)? }
 request_body = ${ (!(CRLF* ~ request_separator) ~ !(CRLF* ~ handler_script_start) ~ !(CRLF* ~ EOI) ~ (inline_script | ANY))+ }
 request_handler = ${ !request_separator ~ handler_script }
 

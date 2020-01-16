@@ -110,6 +110,26 @@ fn test_min_file() {
 }
 
 #[test]
+fn test_empty_body_with_handler() {
+    let test = "\
+POST http://example.com HTTP/1.1
+Accept: */*
+
+> {%
+    console.log('cool');
+%}
+###
+";
+
+    let file = ScriptParser::parse(Rule::file, test);
+    if let Err(e) = &file {
+        println!("{:?}", e);
+    }
+
+    assert!(file.is_ok());
+}
+
+#[test]
 fn test_new_line_in_request_body_file() {
     let test = "\
 POST http://example.com HTTP/1.1
