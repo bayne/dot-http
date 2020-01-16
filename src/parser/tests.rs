@@ -58,9 +58,7 @@ Content-Type: {{ content_type }}
 
 > {%
     console.log('Success!');
-%}
-
-###"
+%}"
     );
 
     let mut request_script_parts = request_script.into_inner();
@@ -88,8 +86,7 @@ Content-Type: {{ content_type }}
         "\
 GET http://example.com/{{url_param}}
 Accept: */*
-
-###"
+"
     );
 
     let mut request_script_parts = request_script.into_inner();
@@ -103,6 +100,35 @@ Accept: */*
 #[test]
 fn test_min_file() {
     let test = "POST http://example.com HTTP/1.1\n";
+
+    let file = ScriptParser::parse(Rule::file, test);
+    if let Err(e) = &file {
+        println!("{:?}", e);
+    }
+
+    assert!(file.is_ok());
+}
+
+#[test]
+fn test_new_line_in_request_body_file() {
+    let test = "\
+POST http://example.com HTTP/1.1
+Accept: */*
+
+{
+    \"test\": \"a\",
+    \"what\": [
+
+    ]
+}
+
+
+> {%
+    console.log('cool');
+%}
+
+###
+";
 
     let file = ScriptParser::parse(Rule::file, test);
     if let Err(e) = &file {
@@ -309,7 +335,7 @@ Accept: */*
                         selection: Selection {
                             filename: Path::new("").to_path_buf(),
                             start: Position { line: 4, col: 1 },
-                            end: Position { line: 19, col: 4 },
+                            end: Position { line: 17, col: 3 },
                         },
                     },
                     handler: Some(Handler {
@@ -323,7 +349,7 @@ Accept: */*
                     selection: Selection {
                         filename: Path::new("").to_path_buf(),
                         start: Position { line: 4, col: 1 },
-                        end: Position { line: 19, col: 4 },
+                        end: Position { line: 17, col: 3 },
                     },
                 },
                 RequestScript {
@@ -374,14 +400,14 @@ Accept: */*
                         selection: Selection {
                             filename: Path::new("").to_path_buf(),
                             start: Position { line: 22, col: 1 },
-                            end: Position { line: 25, col: 1 },
+                            end: Position { line: 24, col: 1 },
                         },
                     },
                     handler: None,
                     selection: Selection {
                         filename: Path::new("").to_path_buf(),
                         start: Position { line: 22, col: 1 },
-                        end: Position { line: 25, col: 1 },
+                        end: Position { line: 24, col: 1 },
                     },
                 },
             ],
@@ -435,7 +461,7 @@ Accept: */*
                     selection: Selection {
                         filename: Path::new("").to_path_buf(),
                         start: Position { line: 4, col: 1 },
-                        end: Position { line: 19, col: 4 },
+                        end: Position { line: 17, col: 3 },
                     },
                 },
                 handler: Some(Handler {
@@ -449,7 +475,7 @@ Accept: */*
                 selection: Selection {
                     filename: Path::new("").to_path_buf(),
                     start: Position { line: 4, col: 1 },
-                    end: Position { line: 19, col: 4 },
+                    end: Position { line: 17, col: 3 },
                 },
             },
             RequestScript {
@@ -481,14 +507,14 @@ Accept: */*
                     selection: Selection {
                         filename: Path::new("").to_path_buf(),
                         start: Position { line: 22, col: 1 },
-                        end: Position { line: 25, col: 1 },
+                        end: Position { line: 24, col: 1 },
                     },
                 },
                 handler: None,
                 selection: Selection {
                     filename: Path::new("").to_path_buf(),
                     start: Position { line: 22, col: 1 },
-                    end: Position { line: 25, col: 1 },
+                    end: Position { line: 24, col: 1 },
                 },
             },
         ],

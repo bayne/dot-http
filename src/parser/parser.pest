@@ -18,8 +18,8 @@ inline_script_string = { inline_script_string_character* }
 inline_script_string_character = _{ !inline_script_end ~ !"{{" ~ ANY}
 inline_script_end = _{ SP* ~ "}}" }
 
-request_script = { request ~ (CRLF ~ request_body)? ~ (CRLF{2,} ~ request_handler)? ~ CRLF* ~ request_separator* }
-request_body = ${ (!request_separator ~ !CRLF{2,} ~ (inline_script | ANY))+ }
+request_script = { request ~ (CRLF ~ request_body)? ~ (CRLF{2,} ~ request_handler)? }
+request_body = ${ (!(CRLF* ~ request_separator) ~ !(CRLF* ~ handler_script_start) ~ !(CRLF* ~ EOI) ~ (inline_script | ANY))+ }
 request_handler = ${ !request_separator ~ handler_script }
 
 request = _{ request_line ~ CRLF ~ (header_field ~ CRLF)* }
@@ -33,4 +33,4 @@ header_field = ${ field_name ~ ":" ~ SP* ~ field_value}
 field_name = { token }
 field_value = { (!CRLF ~ (inline_script | ANY))* }
 
-file = { SOI ~ CRLF* ~ (request_script ~ CRLF*)* ~ EOI }
+file = { SOI ~ CRLF* ~ (request_script ~ CRLF* ~ ((request_separator ~ CRLF*) | EOI))* ~ EOI }
