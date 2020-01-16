@@ -8,7 +8,6 @@ use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest::Span;
-use std::ffi::OsStr;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -219,7 +218,7 @@ impl FromPair for Request<Unprocessed> {
                             _ => None,
                         });
                         if let Some(pair) = pair {
-                            Some(Value::from_pair(filename.clone(), pair))
+                            Some(Value::from_pair(filename, pair))
                         } else {
                             None
                         }
@@ -245,7 +244,7 @@ impl FromPair for RequestScript<Unprocessed> {
                             _ => None,
                         });
                         if let Some(pair) = pair {
-                            Some(Handler::from_pair(filename.clone(), pair))
+                            Some(Handler::from_pair(filename, pair))
                         } else {
                             None
                         }

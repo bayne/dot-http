@@ -1,7 +1,5 @@
-use boa::builtins::value::ToValue;
-use boa::builtins::value::ValueData::Integer;
 use clap::{App, Arg};
-use dot_http::{DotHttp, Error, ErrorKind};
+use dot_http::DotHttp;
 use std::path::Path;
 
 fn main() {
@@ -43,7 +41,7 @@ fn main() {
     let env_file = matches.value_of("env file").unwrap().to_string();
     let snapshot_file = matches.value_of("snapshot file").unwrap().to_string();
 
-    let mut dot_http = DotHttp::new();
+    let mut dot_http = DotHttp::default();
     match dot_http.execute(
         offset,
         env,

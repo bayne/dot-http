@@ -16,11 +16,9 @@ use crate::response_handler::{DefaultOutputter, Outputter, ResponseHandler};
 use crate::script_engine::boa::BoaScriptEngine;
 use crate::script_engine::{Processable, ScriptEngine};
 use crate::ErrorKind::{
-    CannotParseRequestScript, CannotReadEnvFile, CannotReadRequestScriptFile,
-    CannotReadSnapshotFile, ScriptEngineError,
+    ParseRequestScript, ReadEnvFile, ReadRequestScriptFile, ReadSnapshotFile, ScriptEngineError,
 };
 use serde::export::Formatter;
-use std::ffi::{OsStr, OsString};
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
@@ -31,34 +29,36 @@ pub struct Error {
 
 #[derive(Debug)]
 pub enum ErrorKind {
-    CannotReadEnvFile(PathBuf, std::io::Error),
-    CannotReadSnapshotFile(PathBuf, std::io::Error),
-    CannotParseRequestScript(parser::Error),
-    CannotReadRequestScriptFile(PathBuf, std::io::Error),
+    ReadEnvFile(PathBuf, std::io::Error),
+    ReadSnapshotFile(PathBuf, std::io::Error),
+    ParseRequestScript(parser::Error),
+    ReadRequestScriptFile(PathBuf, std::io::Error),
     ScriptEngineError(PathBuf, script_engine::Error),
+    HttpClient(reqwest::Error),
 }
 
 impl std::error::Error for Error {}
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match &self.kind {
-            CannotReadEnvFile(filename, e) => f.write_fmt(format_args!(
+            ReadEnvFile(filename, e) => f.write_fmt(format_args!(
                 "Could not read environment file - {}: {}",
                 filename.display(),
                 e
             )),
-            CannotReadSnapshotFile(filename, e) => f.write_fmt(format_args!(
+            ReadSnapshotFile(filename, e) => f.write_fmt(format_args!(
                 "Could not read the snapshot file - {}: {}",
                 filename.display(),
                 e
             )),
-            CannotParseRequestScript(e) => f.write_fmt(format_args!("{}", e.message)),
-            CannotReadRequestScriptFile(filename, e) => {
+            ParseRequestScript(e) => f.write_fmt(format_args!("{}", e.message)),
+            ReadRequestScriptFile(filename, e) => {
                 f.write_fmt(format_args!("{}: {}", filename.display(), e))
             }
             ScriptEngineError(filename, e) => {
                 f.write_fmt(format_args!("{}: {}", filename.display(), e))
             }
+            ErrorKind::HttpClient(e) => f.write_fmt(format_args!("{}", e)),
         }
     }
 }
@@ -69,8 +69,8 @@ pub struct DotHttp {
     response_handler: DefaultResponseHandler,
 }
 
-impl DotHttp {
-    pub fn new() -> DotHttp {
+impl Default for DotHttp {
+    fn default() -> Self {
         let outputter: DefaultOutputter = DefaultOutputter::new();
         DotHttp {
             outputter,
@@ -78,6 +78,9 @@ impl DotHttp {
             response_handler: DefaultResponseHandler {},
         }
     }
+}
+
+impl DotHttp {
     pub fn execute(
         &mut self,
         offset: usize,
@@ -87,13 +90,13 @@ impl DotHttp {
         env_file: &Path,
     ) -> Result<(), Error> {
         let file = read_to_string(&script_file).map_err(|err| Error {
-            kind: ErrorKind::CannotReadRequestScriptFile(script_file.to_path_buf(), err),
+            kind: ErrorKind::ReadRequestScriptFile(script_file.to_path_buf(), err),
         })?;
         let file = &mut parse(script_file.to_path_buf(), file.as_str()).map_err(|err| Error {
-            kind: CannotParseRequestScript(err),
+            kind: ParseRequestScript(err),
         })?;
         let env_file = read_to_string(env_file).map_err(|err| Error {
-            kind: ErrorKind::CannotReadEnvFile(env_file.to_path_buf(), err),
+            kind: ErrorKind::ReadEnvFile(env_file.to_path_buf(), err),
         })?;
 
         let snapshot_script = match read_to_string(snapshot_file) {
@@ -102,16 +105,14 @@ impl DotHttp {
                 Ok(String::from(BoaScriptEngine::empty()))
             }
             Err(e) => Err(Error {
-                kind: ErrorKind::CannotReadSnapshotFile(snapshot_file.to_path_buf(), e),
+                kind: ErrorKind::ReadSnapshotFile(snapshot_file.to_path_buf(), e),
             }),
         }?;
 
         let engine = &mut self.engine;
         let outputter = &mut self.outputter;
 
-        engine
-            .initialize(env_file, env.clone(), snapshot_script)
-            .unwrap();
+        engine.initialize(env_file, env, snapshot_script).unwrap();
 
         let request_script = file.request_script(offset);
         let request_script = request_script.process(engine).map_err(|err| Error {
@@ -120,14 +121,14 @@ impl DotHttp {
 
         outputter.output_request(&request_script.request).unwrap();
 
-        let response = request_script.request.execute();
+        let response = request_script.request.execute()?;
 
         self.response_handler
             .handle(engine, outputter, &request_script, response.into())
             .unwrap();
         let snapshot = engine.snapshot().unwrap();
 
-        std::fs::write(snapshot_file.clone(), snapshot).unwrap();
+        std::fs::write(snapshot_file, snapshot).unwrap();
 
         Ok(())
     }
@@ -148,9 +149,8 @@ impl File {
 mod model {
     use serde::export::fmt::Error;
     use serde::export::Formatter;
-    use std::ffi::OsString;
     use std::fmt::Display;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
 
     #[derive(Debug)]
     pub struct Response {
@@ -259,10 +259,21 @@ mod model {
         pub end: Position,
     }
 
+    impl Display for Selection {
+        fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+            f.write_fmt(format_args!(
+                "{filename}:{line}:{col}",
+                filename = self.filename.display(),
+                line = self.start.line,
+                col = self.start.col
+            ))
+        }
+    }
+
     impl Selection {
         pub fn none() -> Selection {
             Selection {
-                filename: Path::new("none").to_path_buf(),
+                filename: PathBuf::default(),
                 start: Position { line: 0, col: 0 },
                 end: Position { line: 0, col: 0 },
             }

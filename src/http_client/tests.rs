@@ -4,8 +4,7 @@ use http_test_server::TestServer;
 #[test]
 fn test_execute() {
     let server = TestServer::new().unwrap();
-    let resource = server.create_resource("/defaults");
-    let requests = server.requests();
+    server.create_resource("/defaults");
 
     let script = RequestScript {
         request: Request {
@@ -23,6 +22,6 @@ fn test_execute() {
         handler: None,
         selection: Selection::none(),
     };
-    let res = script.request.execute();
+    let res = script.request.execute().unwrap();
     assert_eq!(200, res.status_code);
 }

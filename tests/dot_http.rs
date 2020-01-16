@@ -1,23 +1,24 @@
 use dot_http::DotHttp;
 use http_test_server::TestServer;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, BufReader, Read, Write};
-use std::net::TcpStream;
-use tempfile::{tempfile, NamedTempFile, TempPath};
+use std::io::Write;
+use tempfile::NamedTempFile;
 
 #[test]
 fn test() {
     let server = TestServer::new().unwrap();
-    let resource = server.create_resource("/defaults");
-    let requests = server.requests();
+    let _resource = server.create_resource("/defaults");
+    let _requests = server.requests();
 
     let mut snapshot_file = NamedTempFile::new().unwrap();
-    writeln!(snapshot_file, "{{}}");
+
+    writeln!(snapshot_file, "{{}}").unwrap();
+
     let snapshot_file = snapshot_file.into_temp_path();
 
     let mut env_file = NamedTempFile::new().unwrap();
-    writeln!(env_file, "{{}}");
+
+    writeln!(env_file, "{{}}").unwrap();
+
     let env_file = env_file.into_temp_path();
 
     let mut script_file = NamedTempFile::new().unwrap();
@@ -25,9 +26,11 @@ fn test() {
         script_file,
         "POST http://localhost:{port} HTTP/1.1",
         port = server.port()
-    );
+    )
+    .unwrap();
+
     let script_file = script_file.into_temp_path();
-    let mut dot_http = DotHttp::new();
+    let mut dot_http = DotHttp::default();
 
     let offset = 1;
     let env = String::from("dev");

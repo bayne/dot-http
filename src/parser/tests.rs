@@ -2,7 +2,7 @@ use super::*;
 use crate::model::Method::{Get, Post};
 use crate::Unprocessed::WithInline;
 use crate::Unprocessed::WithoutInline;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[test]
 fn test() {
@@ -102,7 +102,7 @@ Accept: */*
 
 #[test]
 fn test_min_file() {
-    let test = "POST http://example.com HTTP/1.1";
+    let test = "POST http://example.com HTTP/1.1\n";
 
     let file = ScriptParser::parse(Rule::file, test);
     if let Err(e) = &file {
@@ -189,9 +189,11 @@ pub(crate) fn test_file() -> (
 ) {
     (
         "\
-var host = 'example';
-var content_type = 'application/json';
-var url_param = '?query=id';\
+{
+    \"host\": \"example\",
+    \"content_type\": \"application/json\",
+    \"url_param\": \"?query=id\"
+}
         ",
         "\
 # Comment 1
@@ -440,7 +442,7 @@ Accept: */*
                     script: "console.log(\'Success!\');\n\n    var a = \"what\"".to_string(),
                     selection: Selection {
                         filename: Path::new("").to_path_buf(),
-                        start: Position { line: 11, col: 2 },
+                        start: Position { line: 13, col: 1 },
                         end: Position { line: 17, col: 3 },
                     },
                 }),

@@ -1,7 +1,5 @@
 use crate::model::Selection;
-use crate::script_engine::ErrorKind::{
-    CouldNotExecute, CouldNotParseEnv, CouldNotParseInitializeObject,
-};
+use crate::script_engine::ErrorKind::Execute;
 use crate::script_engine::{Error, ErrorKind, Expression, Script, ScriptEngine};
 use boa::builtins::value::ValueData;
 use boa::exec::Executor;
@@ -14,10 +12,7 @@ use boa::syntax::ast::expr::ExprDef::VarDecl;
 use boa::syntax::ast::expr::ExprDef::{Block, Call, GetConstField};
 use boa::syntax::ast::expr::{Expr, ExprDef};
 use boa::syntax::lexer::Lexer;
-use boa::syntax::lexer::LexerError;
-use boa::syntax::parser::ParseError as BoaParseError;
 use boa::syntax::parser::Parser;
-use gc::Gc;
 use serde_json::{to_string_pretty, Map};
 use serde_json::{Number as JSONNumber, Value as JSONValue};
 use std::convert::From;
@@ -84,12 +79,11 @@ impl ScriptEngine for BoaScriptEngine {
         Ok(self
             .engine
             .run(&expression.expr)
-            .map_err(|err| {
-                dbg!(&err);
-                Error {
-                    selection: expression.selection,
-                    kind: CouldNotExecute,
-                }
+            .map_err(|_err| Error {
+                selection: expression.selection,
+                kind: Execute(String::from(
+                    "Unknown error when trying to execute javascript",
+                )),
             })?
             .to_string())
     }
@@ -100,11 +94,17 @@ impl ScriptEngine for BoaScriptEngine {
             selection,
         } = script;
         let mut lexer = Lexer::new(script.as_str());
-        lexer.lex().unwrap();
+        lexer.lex().map_err(|err| Error {
+            selection: selection.clone(),
+            kind: ErrorKind::Execute(err.to_string()),
+        })?;
         let tokens = lexer.tokens;
         Ok(Expression {
-            selection,
-            expr: Parser::new(tokens).parse_all().unwrap(),
+            selection: selection.clone(),
+            expr: Parser::new(tokens).parse_all().map_err(|_err| Error {
+                selection,
+                kind: ErrorKind::Execute("Error while parsing".to_string()),
+            })?,
         })
     }
 
@@ -173,19 +173,15 @@ fn declare_object(
 ) -> Result<Expr, Error> {
     let Expression { expr: env_file, .. } = engine
         .parse(Script::internal_script(script))
-        .map_err(|_| initialize_error(ErrorKind::CouldNotParseInitializeObject(var_name)))?;
+        .map_err(|_| initialize_error(ErrorKind::ParseInitializeObject(var_name)))?;
     let env_file = match &env_file {
         Expr { def: Block(expr) } => match &expr[..] {
             [Expr {
                 def: expr @ ObjectDecl(_),
             }] => Ok(expr),
-            _ => Err(initialize_error(ErrorKind::CouldNotParseInitializeObject(
-                var_name,
-            ))),
+            _ => Err(initialize_error(ErrorKind::ParseInitializeObject(var_name))),
         },
-        _ => Err(initialize_error(ErrorKind::CouldNotParseInitializeObject(
-            var_name,
-        ))),
+        _ => Err(initialize_error(ErrorKind::ParseInitializeObject(var_name))),
     }?;
 
     Ok(Expr {

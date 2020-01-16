@@ -2,7 +2,7 @@ use crate::model::*;
 use reqwest::blocking::Body;
 use reqwest::blocking::RequestBuilder;
 use reqwest::blocking::Response as HttpResponse;
-use reqwest::{Method as HttpMethod, Version as HttpVersion};
+use reqwest::{Error, Method as HttpMethod, Version as HttpVersion};
 
 #[cfg(test)]
 mod tests;
@@ -66,6 +66,14 @@ impl From<HttpResponse> for Response {
     }
 }
 
+impl From<reqwest::Error> for crate::Error {
+    fn from(e: reqwest::Error) -> Self {
+        crate::Error {
+            kind: crate::ErrorKind::HttpClient(e),
+        }
+    }
+}
+
 fn set_body(
     body: &Option<Value<Processed>>,
     mut request_builder: RequestBuilder,
@@ -80,7 +88,7 @@ fn set_body(
 }
 
 impl Request<Processed> {
-    pub fn execute(&self) -> Response {
+    pub fn execute(&self) -> Result<Response, Error> {
         let Request {
             method,
             target: Value {
@@ -95,8 +103,8 @@ impl Request<Processed> {
         let mut request_builder = client.request(method.into(), target);
         request_builder = set_headers(headers, request_builder);
         request_builder = set_body(body, request_builder);
-        let response = request_builder.send().unwrap();
+        let response = request_builder.send()?;
 
-        response.into()
+        Ok(response.into())
     }
 }

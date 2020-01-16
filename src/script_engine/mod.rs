@@ -1,5 +1,5 @@
 use crate::model::*;
-use crate::script_engine::ErrorKind::{CouldNotParseEnv, CouldNotParseInitializeObject};
+use crate::script_engine::ErrorKind::ParseInitializeObject;
 use std::fmt::{Debug, Formatter};
 
 pub mod boa;
@@ -15,9 +15,8 @@ pub struct Error {
 
 #[derive(Debug)]
 enum ErrorKind {
-    CouldNotParseEnv(String),
-    CouldNotParseInitializeObject(&'static str),
-    CouldNotExecute,
+    ParseInitializeObject(&'static str),
+    Execute(String),
 }
 
 impl std::error::Error for Error {}
@@ -25,11 +24,16 @@ impl std::error::Error for Error {}
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match &self.kind {
-            CouldNotParseEnv(e) => f.write_fmt(format_args!("Could not parse env: {}", e)),
-            CouldNotParseInitializeObject(e) => {
-                f.write_fmt(format_args!("Could not parse initialize object: {}", e))
-            }
-            CouldNotExecute => f.write_str("Cannot execute"),
+            ParseInitializeObject(e) => f.write_fmt(format_args!(
+                "{selection}:, Could not parse initialize object, {error}",
+                selection = self.selection,
+                error = e
+            )),
+            ErrorKind::Execute(e) => f.write_fmt(format_args!(
+                "{selection}: {error}",
+                selection = self.selection,
+                error = e.as_str()
+            )),
         }
     }
 }
