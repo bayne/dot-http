@@ -1,6 +1,6 @@
-on: [push, pull_request]
+on: [pull_request]
 
-name: Quickstart
+name: Verify
 
 jobs:
   check:
