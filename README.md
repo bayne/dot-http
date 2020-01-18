@@ -1,0 +1,283 @@
+# dot_http ![Verify build](https://github.com/bayne/dot_http/workflows/Verify/badge.svg) 
+
+![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square) 
+![Powered by Rust](https://img.shields.io/badge/Powered%20By-Rust-orange?style=flat-square)
+
+dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with additional features to make it practical for someone who builds and tests APIs.
+
+```
+# Scripts are built in a language that resembles HTTP
+POST http://httpbin.org/post
+Content-Type: application/json
+
+{
+    "token": "sometoken",
+    "id": 237
+}
+
+# Add a handler to pull data out of the response to be used in future requests
+> {%
+   client.global.set('auth_token', response.body.json.token);
+   client.global.set('some_id', response.body.json.id);
+%}
+
+###
+
+# Variables can be used to build requests based on past response data
+PUT http://httpbin.org/put
+X-Auth-Token: {{auth_token}}
+
+{
+    "id": {{some_id}} # Variables can also be used in the body
+}
+
+```
+
+## Installation
+
+### Script
+
+Enter the following in a command prompt:
+
+```
+curl -LSfs https://japaric.github.io/trust/install.sh | sh -s -- --git bayne/dot_http
+```
+
+### Binary releases
+
+The easiest way for most users is simply to download the prebuilt binaries.
+You can find binaries for various platforms on the
+[release](https://github.com/bayne/dot_http/releases) page.
+
+### Cargo
+
+First, install [cargo](https://rustup.rs/). Then:
+
+```bash
+$ cargo install dot_http
+```
+
+You will need to use the nightly release for this to work; if in doubt run
+
+```bash
+rustup run nightly cargo install dot_http
+```
+
+## Usage
+
+See `dot_http --help` for usage.
+
+### Vim
+
+See this [plugin](https://github.com/bayne/vim_dot_http) to use dot_http within vim.
+
+### The request
+
+The request format is intended to resemble HTTP as close as possible. HTTP was initially designed to be human-readable and simple, so why not use that?
+
+**simple.http**
+```
+GET http://httpbin.org
+Accept: */*
+```
+Executing that script just prints the response to stdout:
+```
+$ dot_http simple.http
+GET http://httpbin.org/get
+
+HTTP/1.1 200 OK
+access-control-allow-credentials: true
+access-control-allow-origin: *
+content-type: application/json
+date: Sat, 18 Jan 2020 20:48:50 GMT
+referrer-policy: no-referrer-when-downgrade
+server: nginx
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-xss-protection: 1; mode=block
+content-length: 170
+connection: keep-alive
+             
+{
+  "args": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Host": "httpbin.org"
+  }, 
+  "url": "https://httpbin.org/get"
+}
+```
+
+### Variables
+
+Use variables to build the scripts dynamically, either pulling data from your environment file or from a previous request's response handler.
+
+**simple_with_variables.http**
+```
+POST http://httpbin.org/post
+Accept: */*
+X-Auth-Token: {{token}}
+
+{
+    "id": {{env_id}}
+}
+```
+
+**http-client.env.json**
+```
+{
+    "dev": {
+        "env_id": 42,
+        "token": "SuperSecretToken"
+    }
+}
+```
+
+Note that the variables are replaced by their values
+```
+$ dot_http simple_with_variables.http 
+POST http://httpbin.org/post
+
+HTTP/1.1 200 OK
+access-control-allow-credentials: true
+access-control-allow-origin: *
+content-type: application/json
+date: Sat, 18 Jan 2020 20:55:24 GMT
+referrer-policy: no-referrer-when-downgrade
+server: nginx
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-xss-protection: 1; mode=block
+content-length: 342
+connection: keep-alive
+             
+{
+  "args": {}, 
+  "data": "{\r\n    \"id\": 42\r\n}", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Content-Length": "18", 
+    "Host": "httpbin.org", 
+    "X-Auth-Token": "SuperSecretToken"
+  }, 
+  "json": {
+    "id": 42
+  }, 
+  "url": "https://httpbin.org/post"
+}
+```
+
+### Response handler
+
+Use previous requests to populate some of the data in future requests
+
+**response_handler.http**
+```
+POST http://httpbin.org/post
+Content-Type: application/json
+
+{
+    "token": "sometoken",
+    "id": 237
+}
+
+> {%
+   client.global.set('auth_token', response.body.json.token);
+   client.global.set('some_id', response.body.json.id);
+%}
+
+###
+
+PUT http://httpbin.org/put
+X-Auth-Token: {{auth_token}}
+
+{
+    "id": {{some_id}}
+}
+```
+
+Data from a previous request
+
+```
+$ dot_http test.http 
+POST http://httpbin.org/post
+
+HTTP/1.1 200 OK
+access-control-allow-credentials: true
+access-control-allow-origin: *
+content-type: application/json
+date: Sat, 18 Jan 2020 21:01:59 GMT
+referrer-policy: no-referrer-when-downgrade
+server: nginx
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-xss-protection: 1; mode=block
+content-length: 404
+connection: keep-alive
+             
+{
+  "args": {}, 
+  "data": "{\r\n    \"token\": \"sometoken\",\r\n    \"id\": 237\r\n}", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Content-Length": "46", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org"
+  }, 
+  "json": {
+    "id": 237, 
+    "token": "sometoken"
+  }, 
+  "url": "https://httpbin.org/post"
+}
+```
+
+Can populate data in a future request
+
+```
+$ dot_http -l 16 test.http 
+PUT http://httpbin.org/put
+
+HTTP/1.1 200 OK
+access-control-allow-credentials: true
+access-control-allow-origin: *
+content-type: application/json
+date: Sat, 18 Jan 2020 21:02:28 GMT
+referrer-policy: no-referrer-when-downgrade
+server: nginx
+x-content-type-options: nosniff
+x-frame-options: DENY
+x-xss-protection: 1; mode=block
+content-length: 336
+connection: keep-alive
+             
+{
+  "args": {}, 
+  "data": "{\r\n    \"id\": 237\r\n}", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Accept": "*/*", 
+    "Content-Length": "19", 
+    "Host": "httpbin.org", 
+    "X-Auth-Token": "sometoken"
+  }, 
+  "json": {
+    "id": 237
+  }, 
+  "url": "https://httpbin.org/put"
+}
+```
+
+## Contributing
+
+Contributions and suggestions are very welcome!
+
+Please create an issue before submitting a PR, PRs will only be accepted if they reference an existing issue. If you have a suggested change please create an issue first so that we can discuss it.
+
+## License
+[Apache License 2.0](https://github.com/bayne/dot_http/blob/master/LICENSE)
