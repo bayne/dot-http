@@ -7,6 +7,14 @@ jobs:
     name: Check
     runs-on: ubuntu-latest
     steps:
+      - name: Check branch name
+        uses: deepakputhraya/action-branch-name@master
+        with:
+          regex: 'GH-\d+-.*' # Regex the branch should match. This example enforces grouping
+          allowed_prefixes: 'feat,fix' # All branches should start with the given prefix
+          ignore: master,develop # Ignore exactly matching branch names from convention
+          min_length: 5 # Min length of the branch name
+          max_length: 20 # Max length of the branch name
       - name: Checkout sources
         uses: actions/checkout@v2
 
