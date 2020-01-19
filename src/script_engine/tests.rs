@@ -1,8 +1,9 @@
-use crate::model::{InlineScript, Position, Selection, Unprocessed, Value};
+use crate::model::{
+    InlineScript, Position, Processed, RequestScript, Selection, Unprocessed, Value,
+};
 use crate::parser::tests::test_file;
 use crate::script_engine::boa::BoaScriptEngine;
 use crate::script_engine::{Processable, Script, ScriptEngine};
-use crate::{Processed, RequestScript};
 
 #[cfg(test)]
 fn setup(src: &'static str) -> BoaScriptEngine {

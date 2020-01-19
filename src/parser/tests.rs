@@ -1,7 +1,6 @@
 use super::*;
 use crate::model::Method::{Get, Post};
-use crate::Unprocessed::WithInline;
-use crate::Unprocessed::WithoutInline;
+use crate::model::Unprocessed::{WithInline, WithoutInline};
 use std::path::Path;
 
 #[test]

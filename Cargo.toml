@@ -3,6 +3,15 @@ authors = ["Brian Payne <bwpayne@gmail.com>"]
 edition = "2018"
 name = "dot_http"
 version = "0.1.0"
+readme = "README.md"
+description = "dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with additional features to make it practical for someone who builds and tests APIs."
+repository = "https://github.com/bayne/dot_http"
+keywords = ["rest client", "http", "scriptable", "javascript", "API"]
+categories = ["command-line-utilities", "development-tools::testing", "web-programming::http-client"]
+license = "Apache-2.0"
+
+[badges]
+maintenance = { status = "experimental" }
 
 [dependencies]
 Boa = "0.5.1"

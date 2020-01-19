@@ -1,12 +1,14 @@
-# dot_http ![Verify build](https://github.com/bayne/dot_http/workflows/Verify/badge.svg) 
+<!-- cargo-sync-readme start -->
 
-![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square) 
+# dot_http
+
+![Verify build](https://github.com/bayne/dot_http/workflows/Verify/badge.svg)
+![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)
 ![Powered by Rust](https://img.shields.io/badge/Powered%20By-Rust-orange?style=flat-square)
 
-dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with additional features to make it practical for someone who builds and tests APIs.
+dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with just a smidgen of magic to make more it practical for someone who builds and tests APIs.
 
-```
-# Scripts are built in a language that resembles HTTP
+```text,no_run
 POST http://httpbin.org/post
 Content-Type: application/json
 
@@ -15,7 +17,6 @@ Content-Type: application/json
     "id": 237
 }
 
-# Add a handler to pull data out of the response to be used in future requests
 > {%
    client.global.set('auth_token', response.body.json.token);
    client.global.set('some_id', response.body.json.id);
@@ -23,7 +24,6 @@ Content-Type: application/json
 
 ###
 
-# Variables can be used to build requests based on past response data
 PUT http://httpbin.org/put
 X-Auth-Token: {{auth_token}}
 
@@ -39,7 +39,7 @@ X-Auth-Token: {{auth_token}}
 
 Enter the following in a command prompt:
 
-```
+```text,no_run
 curl -LSfs https://japaric.github.io/trust/install.sh | sh -s -- --git bayne/dot_http
 ```
 
@@ -53,13 +53,13 @@ You can find binaries for various platforms on the
 
 First, install [cargo](https://rustup.rs/). Then:
 
-```bash
+```bash,no_run
 $ cargo install dot_http
 ```
 
 You will need to use the nightly release for this to work; if in doubt run
 
-```bash
+```bash,no_run
 rustup run nightly cargo install dot_http
 ```
 
@@ -76,12 +76,12 @@ See this [plugin](https://github.com/bayne/vim_dot_http) to use dot_http within 
 The request format is intended to resemble HTTP as close as possible. HTTP was initially designed to be human-readable and simple, so why not use that?
 
 **simple.http**
-```
+```text,no_run
 GET http://httpbin.org
 Accept: */*
 ```
 Executing that script just prints the response to stdout:
-```
+```text,no_run
 $ dot_http simple.http
 GET http://httpbin.org/get
 
@@ -97,13 +97,13 @@ x-frame-options: DENY
 x-xss-protection: 1; mode=block
 content-length: 170
 connection: keep-alive
-             
+
 {
-  "args": {}, 
+  "args": {},
   "headers": {
-    "Accept": "*/*", 
+    "Accept": "*/*",
     "Host": "httpbin.org"
-  }, 
+  },
   "url": "https://httpbin.org/get"
 }
 ```
@@ -113,7 +113,7 @@ connection: keep-alive
 Use variables to build the scripts dynamically, either pulling data from your environment file or from a previous request's response handler.
 
 **simple_with_variables.http**
-```
+```text,no_run
 POST http://httpbin.org/post
 Accept: */*
 X-Auth-Token: {{token}}
@@ -124,7 +124,7 @@ X-Auth-Token: {{token}}
 ```
 
 **http-client.env.json**
-```
+```text,no_run
 {
     "dev": {
         "env_id": 42,
@@ -134,8 +134,8 @@ X-Auth-Token: {{token}}
 ```
 
 Note that the variables are replaced by their values
-```
-$ dot_http simple_with_variables.http 
+```text,no_run
+$ dot_http simple_with_variables.http
 POST http://httpbin.org/post
 
 HTTP/1.1 200 OK
@@ -150,21 +150,21 @@ x-frame-options: DENY
 x-xss-protection: 1; mode=block
 content-length: 342
 connection: keep-alive
-             
+
 {
-  "args": {}, 
-  "data": "{\r\n    \"id\": 42\r\n}", 
-  "files": {}, 
-  "form": {}, 
+  "args": {},
+  "data": "{\r\n    \"id\": 42\r\n}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Content-Length": "18", 
-    "Host": "httpbin.org", 
+    "Accept": "*/*",
+    "Content-Length": "18",
+    "Host": "httpbin.org",
     "X-Auth-Token": "SuperSecretToken"
-  }, 
+  },
   "json": {
     "id": 42
-  }, 
+  },
   "url": "https://httpbin.org/post"
 }
 ```
@@ -174,7 +174,7 @@ connection: keep-alive
 Use previous requests to populate some of the data in future requests
 
 **response_handler.http**
-```
+```text,no_run
 POST http://httpbin.org/post
 Content-Type: application/json
 
@@ -200,8 +200,8 @@ X-Auth-Token: {{auth_token}}
 
 Data from a previous request
 
-```
-$ dot_http test.http 
+```text,no_run
+$ dot_http test.http
 POST http://httpbin.org/post
 
 HTTP/1.1 200 OK
@@ -216,30 +216,30 @@ x-frame-options: DENY
 x-xss-protection: 1; mode=block
 content-length: 404
 connection: keep-alive
-             
+
 {
-  "args": {}, 
-  "data": "{\r\n    \"token\": \"sometoken\",\r\n    \"id\": 237\r\n}", 
-  "files": {}, 
-  "form": {}, 
+  "args": {},
+  "data": "{\r\n    \"token\": \"sometoken\",\r\n    \"id\": 237\r\n}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Content-Length": "46", 
-    "Content-Type": "application/json", 
+    "Accept": "*/*",
+    "Content-Length": "46",
+    "Content-Type": "application/json",
     "Host": "httpbin.org"
-  }, 
+  },
   "json": {
-    "id": 237, 
+    "id": 237,
     "token": "sometoken"
-  }, 
+  },
   "url": "https://httpbin.org/post"
 }
 ```
 
 Can populate data in a future request
 
-```
-$ dot_http -l 16 test.http 
+```text,no_run
+$ dot_http -l 16 test.http
 PUT http://httpbin.org/put
 
 HTTP/1.1 200 OK
@@ -254,21 +254,21 @@ x-frame-options: DENY
 x-xss-protection: 1; mode=block
 content-length: 336
 connection: keep-alive
-             
+
 {
-  "args": {}, 
-  "data": "{\r\n    \"id\": 237\r\n}", 
-  "files": {}, 
-  "form": {}, 
+  "args": {},
+  "data": "{\r\n    \"id\": 237\r\n}",
+  "files": {},
+  "form": {},
   "headers": {
-    "Accept": "*/*", 
-    "Content-Length": "19", 
-    "Host": "httpbin.org", 
+    "Accept": "*/*",
+    "Content-Length": "19",
+    "Host": "httpbin.org",
     "X-Auth-Token": "sometoken"
-  }, 
+  },
   "json": {
     "id": 237
-  }, 
+  },
   "url": "https://httpbin.org/put"
 }
 ```
@@ -281,3 +281,5 @@ Please create an issue before submitting a PR, PRs will only be accepted if they
 
 ## License
 [Apache License 2.0](https://github.com/bayne/dot_http/blob/master/LICENSE)
+
+<!-- cargo-sync-readme end -->

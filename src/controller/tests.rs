@@ -1,4 +1,4 @@
-use dot_http::DotHttp;
+use crate::controller::Controller;
 use http_test_server::TestServer;
 use std::io::Write;
 use tempfile::NamedTempFile;
@@ -30,7 +30,7 @@ fn test() {
     .unwrap();
 
     let script_file = script_file.into_temp_path();
-    let mut dot_http = DotHttp::default();
+    let mut dot_http = Controller::default();
 
     let offset = 1;
     let env = String::from("dev");
