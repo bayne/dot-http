@@ -6,33 +6,7 @@
 //!
 //! dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with just a smidgen of magic to make more it practical for someone who builds and tests APIs.
 //!
-//! ```text,no_run
-//! # Scripts are built in a language that resembles HTTP
-//! POST http://httpbin.org/post
-//! Content-Type: application/json
-//!
-//! {
-//!     "token": "sometoken",
-//!     "id": 237
-//! }
-//!
-//! # Add a handler to pull data out of the response to be used in future requests
-//! > {%
-//!    client.global.set('auth_token', response.body.json.token);
-//!    client.global.set('some_id', response.body.json.id);
-//! %}
-//!
-//! ###
-//!
-//! # Variables can be used to build requests based on past response data
-//! PUT http://httpbin.org/put
-//! X-Auth-Token: {{auth_token}}
-//!
-//! {
-//!     "id": {{some_id}} # Variables can also be used in the body
-//! }
-//!
-//! ```
+//! ![demo](https://user-images.githubusercontent.com/712014/72685883-36b2f700-3aa3-11ea-8a89-0e454391579f.gif)
 //!
 //! ## Installation
 //!
