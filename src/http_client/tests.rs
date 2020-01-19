@@ -1,4 +1,4 @@
-use crate::*;
+use crate::model::*;
 use http_test_server::TestServer;
 
 #[test]

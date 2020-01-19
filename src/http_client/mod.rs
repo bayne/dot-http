@@ -1,3 +1,4 @@
+use crate::controller::ErrorKind;
 use crate::model::*;
 use reqwest::blocking::Body;
 use reqwest::blocking::RequestBuilder;
@@ -66,10 +67,10 @@ impl From<HttpResponse> for Response {
     }
 }
 
-impl From<reqwest::Error> for crate::Error {
+impl From<reqwest::Error> for crate::controller::Error {
     fn from(e: reqwest::Error) -> Self {
-        crate::Error {
-            kind: crate::ErrorKind::HttpClient(e),
+        crate::controller::Error {
+            kind: ErrorKind::HttpClient(e),
         }
     }
 }
