@@ -30,12 +30,12 @@ fn test() {
     .unwrap();
 
     let script_file = script_file.into_temp_path();
-    let mut dot_http = Controller::default();
+    let mut controller = Controller::default();
 
     let offset = 1;
     let env = String::from("dev");
 
-    dot_http
+    controller
         .execute(offset, env, &script_file, &snapshot_file, &env_file)
         .unwrap();
 }
@@ -85,12 +85,12 @@ Accept: */*
     .unwrap();
 
     let script_file = script_file.into_temp_path();
-    let mut dot_http = Controller::default();
+    let mut dot-http = Controller::default();
 
     let offset = 17;
     let env = String::from("dev");
 
-    dot_http
+    dot-http
         .execute(offset, env, &script_file, &snapshot_file, &env_file)
         .unwrap();
 }
