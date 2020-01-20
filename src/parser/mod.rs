@@ -67,7 +67,7 @@ impl ToSelection for LineColLocation {
 impl FromPair for Handler {
     fn from_pair(filename: PathBuf, pair: Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
-            Rule::request_handler => Handler {
+            Rule::response_handler => Handler {
                 selection: pair.as_span().to_selection(filename),
                 script: pair
                     .into_inner()
@@ -85,7 +85,7 @@ impl FromPair for Handler {
                     .unwrap()
                     .to_string(),
             },
-            _ => invalid_pair(Rule::request_handler, pair.as_rule()),
+            _ => invalid_pair(Rule::response_handler, pair.as_rule()),
         }
     }
 }
@@ -240,7 +240,7 @@ impl FromPair for RequestScript<Unprocessed> {
                     request: Request::from_pair(filename.clone(), pair),
                     handler: {
                         let pair = pairs.find_map(|pair| match pair.as_rule() {
-                            Rule::request_handler => Some(pair),
+                            Rule::response_handler => Some(pair),
                             _ => None,
                         });
                         if let Some(pair) = pair {
