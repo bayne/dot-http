@@ -32,10 +32,10 @@
 //! $ cargo install dot-http
 //! ```
 //!
-//! You will need to use the nightly release for this to work; if in doubt run
+//! You will need to use the stable release for this to work; if in doubt run
 //!
 //! ```bash,no_run
-//! rustup run nightly cargo install dot-http
+//! rustup run stable cargo install dot-http
 //! ```
 //!
 //! ## Usage
