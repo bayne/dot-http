@@ -257,7 +257,6 @@
 //! ## License
 //! [Apache License 2.0](https://github.com/bayne/dot_http/blob/master/LICENSE)
 
-#![feature(slice_patterns)]
 #[macro_use]
 extern crate pest_derive;
 #[macro_use]
