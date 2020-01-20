@@ -9,6 +9,9 @@ use std::fmt::Formatter;
 
 pub mod boa;
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 pub struct Error {
     message: String,
