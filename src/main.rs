@@ -311,43 +311,48 @@ use clap::{App, Arg};
 use std::path::Path;
 
 fn main() {
-    let matches = App::new("controller")
+    let matches = App::new("dot-http")
         .version("0.1.0")
         .about("Executes HTTP scripts")
         .author("Brian Payne")
         .arg(
-            Arg::with_name("env file")
+            Arg::with_name("ENV_FILE")
+                .short("n")
                 .long("environment-file")
-                .hidden(true)
+                .help("A file containing a JSON object that describes the initial values for variables")
                 .default_value("http-client.env.json"),
         )
         .arg(
-            Arg::with_name("snapshot file")
+            Arg::with_name("SNAPSHOT_FILE")
+                .short("p")
                 .long("snapshot-file")
-                .hidden(true)
+                .help("A file containing a JSON object that persists variables between each invocation")
                 .default_value(".snapshot.json"),
         )
         .arg(
-            Arg::with_name("environment")
+            Arg::with_name("ENVIRONMENT")
                 .short("e")
-                .required(false)
+                .required(true)
+                .help("The key value to use on the environment file")
                 .default_value("dev"),
         )
-        .arg(Arg::with_name("script file").required(true).index(1))
+        .arg(Arg::with_name("FILE").required(true).index(1))
         .arg(
-            Arg::with_name("line number")
+            Arg::with_name("LINE")
                 .short("l")
                 .default_value("1")
+                .help("A line number that belongs to the request")
                 .validator(is_valid_line_number)
-                .required(false),
+                .required(true),
         )
+        .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
 
-    let script_file = matches.value_of("script file").unwrap().to_string();
-    let offset: usize = matches.value_of("line number").unwrap().parse().unwrap();
-    let env = matches.value_of("environment").unwrap().to_string();
-    let env_file = matches.value_of("env file").unwrap().to_string();
-    let snapshot_file = matches.value_of("snapshot file").unwrap().to_string();
+    let script_file = matches.value_of("FILE").unwrap().to_string();
+    let offset: usize = matches.value_of("LINE").unwrap().parse().unwrap();
+    let env = matches.value_of("ENVIRONMENT").unwrap().to_string();
+    let env_file = matches.value_of("ENV_FILE").unwrap().to_string();
+    let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap().to_string();
 
     let mut controller = Controller::default();
     match controller.execute(
