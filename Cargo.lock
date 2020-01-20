@@ -154,7 +154,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "dot_http"
+name = "dot-http"
 version = "0.1.0"
 dependencies = [
  "Boa 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",

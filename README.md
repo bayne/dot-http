@@ -1,12 +1,12 @@
 <!-- cargo-sync-readme start -->
 
-# dot_http
+# dot-http
 
-![Verify build](https://github.com/bayne/dot_http/workflows/Verify/badge.svg)
+![Verify build](https://github.com/bayne/dot-http/workflows/Verify/badge.svg)
 ![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)
 ![Powered by Rust](https://img.shields.io/badge/Powered%20By-Rust-orange?style=flat-square)
 
-dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with just a smidgen of magic to make it more practical for someone who builds and tests APIs.
+dot-http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with just a smidgen of magic to make it more practical for someone who builds and tests APIs.
 
 ![demo](https://user-images.githubusercontent.com/712014/72685883-36b2f700-3aa3-11ea-8a89-0e454391579f.gif)
 
@@ -17,36 +17,36 @@ dot_http is a text-based scriptable HTTP client. It is a simple language that re
 Enter the following in a command prompt:
 
 ```text,no_run
-curl -LSfs https://japaric.github.io/trust/install.sh | sh -s -- --git bayne/dot_http
+curl -LSfs https://japaric.github.io/trust/install.sh | sh -s -- --git bayne/dot-http
 ```
 
 ### Binary releases
 
 The easiest way for most users is simply to download the prebuilt binaries.
 You can find binaries for various platforms on the
-[release](https://github.com/bayne/dot_http/releases) page.
+[release](https://github.com/bayne/dot-http/releases) page.
 
 ### Cargo
 
 First, install [cargo](https://rustup.rs/). Then:
 
 ```bash,no_run
-$ cargo install dot_http
+$ cargo install dot-http
 ```
 
 You will need to use the nightly release for this to work; if in doubt run
 
 ```bash,no_run
-rustup run nightly cargo install dot_http
+rustup run nightly cargo install dot-http
 ```
 
 ## Usage
 
-See `dot_http --help` for usage.
+See `dot-http --help` for usage.
 
 ### Vim
 
-See this [plugin](https://github.com/bayne/vim_dot_http) to use dot_http within vim.
+See this [plugin](https://github.com/bayne/vim-dot-http) to use dot-http within vim.
 
 ### The request
 
@@ -59,7 +59,7 @@ Accept: */*
 ```
 Executing that script just prints the response to stdout:
 ```text,no_run
-$ dot_http simple.http
+$ dot-http simple.http
 GET http://httpbin.org/get
 
 HTTP/1.1 200 OK
@@ -112,7 +112,7 @@ X-Auth-Token: {{token}}
 
 Note that the variables are replaced by their values
 ```text,no_run
-$ dot_http simple_with_variables.http
+$ dot-http simple_with_variables.http
 POST http://httpbin.org/post
 
 HTTP/1.1 200 OK
@@ -174,11 +174,11 @@ Specifying different environments when invoking the command results in different
 for the variables in the script
 
 ```text,no_run
-$ dot_http -e dev env_demo.http
+$ dot-http -e dev env_demo.http
 GET http://localhost
 X-Auth-Token: SuperSecretToken
 
-$ dot_http -e prod env_demo.htp
+$ dot-http -e prod env_demo.htp
 GET http://example.com
 X-Auth-Token: ProductionToken
 ```
@@ -215,7 +215,7 @@ X-Auth-Token: {{auth_token}}
 Data from a previous request
 
 ```text,no_run
-$ dot_http test.http
+$ dot-http test.http
 POST http://httpbin.org/post
 
 HTTP/1.1 200 OK
@@ -253,7 +253,7 @@ connection: keep-alive
 Can populate data in a future request
 
 ```text,no_run
-$ dot_http -l 16 test.http
+$ dot-http -l 16 test.http
 PUT http://httpbin.org/put
 
 HTTP/1.1 200 OK
@@ -294,6 +294,6 @@ Contributions and suggestions are very welcome!
 Please create an issue before submitting a PR, PRs will only be accepted if they reference an existing issue. If you have a suggested change please create an issue first so that we can discuss it.
 
 ## License
-[Apache License 2.0](https://github.com/bayne/dot_http/blob/master/LICENSE)
+[Apache License 2.0](https://github.com/bayne/dot-http/blob/master/LICENSE)
 
 <!-- cargo-sync-readme end -->
