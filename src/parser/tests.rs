@@ -512,7 +512,7 @@ Accept: */*
                     ],
                     body: Some(Value {
                         state: Processed {
-                            value: "{\n    \"fieldA\": \"value1\"\n}".to_string(),
+                            value: "{\n    \"fieldA\": \"value1\"\n}\n\n".to_string(),
                         },
                     }),
                     selection: Selection {
