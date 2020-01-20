@@ -4,7 +4,7 @@
 //! ![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)
 //! ![Powered by Rust](https://img.shields.io/badge/Powered%20By-Rust-orange?style=flat-square)
 //!
-//! dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with just a smidgen of magic to make more it practical for someone who builds and tests APIs.
+//! dot_http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with just a smidgen of magic to make it more practical for someone who builds and tests APIs.
 //!
 //! ![demo](https://user-images.githubusercontent.com/712014/72685883-36b2f700-3aa3-11ea-8a89-0e454391579f.gif)
 //!
@@ -142,6 +142,43 @@
 //!   },
 //!   "url": "https://httpbin.org/post"
 //! }
+//! ```
+//!
+//! ### Environment file
+//!
+//! Use an environment file to control what initial values variables have
+//!
+//! **http-client.env.json**
+//! ```text,no_run
+//! {
+//!     "dev": {
+//!         "host": localhost,
+//!         "token": "SuperSecretToken"
+//!     },
+//!     "prod": {
+//!         "host": example.com,
+//!         "token": "ProductionToken"
+//!     }
+//! }
+//! ```
+//!
+//! **env_demo.http**
+//! ```text,no_run
+//! GET http://{{host}}
+//! X-Auth-Token: {{token}}
+//! ```
+//!
+//! Specifying different environments when invoking the command results in different values
+//! for the variables in the script
+//!
+//! ```text,no_run
+//! $ dot_http -e dev env_demo.http
+//! GET http://localhost
+//! X-Auth-Token: SuperSecretToken
+//!
+//! $ dot_http -e prod env_demo.htp
+//! GET http://example.com
+//! X-Auth-Token: ProductionToken
 //! ```
 //!
 //! ### Response handler
