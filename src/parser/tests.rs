@@ -85,6 +85,7 @@ Content-Type: {{ content_type }}
         "\
 GET http://example.com/{{url_param}}
 Accept: */*
+
 "
     );
 
@@ -101,6 +102,23 @@ fn test_min_file() {
     let test = "POST http://example.com HTTP/1.1\n";
 
     let file = ScriptParser::parse(Rule::file, test);
+    if let Err(e) = &file {
+        println!("{:?}", e);
+    }
+
+    assert!(file.is_ok());
+}
+
+#[test]
+fn test_weird_file() {
+    let test = "\
+POST http://example.com HTTP/1.1
+
+{}
+
+> {% console.log('no'); %}";
+
+    let file = parse(PathBuf::default(), test);
     if let Err(e) = &file {
         println!("{:?}", e);
     }
@@ -197,18 +215,38 @@ Content-Type2: {{ content_type2 }}
 }
 
 #[test]
-fn test_request_handler() {
+fn test_response_handler() {
     let test = "\
 > {%
  console.log('hi');
 %}
 ";
-    let handler = ScriptParser::parse(Rule::request_handler, test);
+    let handler = ScriptParser::parse(Rule::response_handler, test);
     if let Err(e) = &handler {
         println!("{:?}", e);
     }
 
     assert!(handler.is_ok());
+}
+
+#[test]
+fn test_response_handler_with_comment() {
+    let test = "\
+POST http://httpbin.org/post
+
+{}
+
+# should be fine > {% %}
+> {%
+  console.log('hi');
+%}
+";
+    let file = ScriptParser::parse(Rule::file, test);
+    if let Err(e) = &file {
+        println!("{:?}", e);
+    }
+
+    assert!(file.is_ok());
 }
 
 #[test]
@@ -343,11 +381,11 @@ Accept: */*
                         ],
                         body: Some(Value {
                             state: WithoutInline(
-                                "{\n    \"fieldA\": \"value1\"\n}".to_string(),
+                                "{\n    \"fieldA\": \"value1\"\n}\n\n".to_string(),
                                 Selection {
                                     filename: Path::new("").to_path_buf(),
                                     start: Position { line: 9, col: 1 },
-                                    end: Position { line: 11, col: 2 },
+                                    end: Position { line: 13, col: 1 },
                                 },
                             ),
                         }),
@@ -419,14 +457,14 @@ Accept: */*
                         selection: Selection {
                             filename: Path::new("").to_path_buf(),
                             start: Position { line: 22, col: 1 },
-                            end: Position { line: 24, col: 1 },
+                            end: Position { line: 25, col: 1 },
                         },
                     },
                     handler: None,
                     selection: Selection {
                         filename: Path::new("").to_path_buf(),
                         start: Position { line: 22, col: 1 },
-                        end: Position { line: 24, col: 1 },
+                        end: Position { line: 25, col: 1 },
                     },
                 },
             ],
@@ -474,7 +512,7 @@ Accept: */*
                     ],
                     body: Some(Value {
                         state: Processed {
-                            value: "{\n    \"fieldA\": \"value1\"\n}".to_string(),
+                            value: "{\n    \"fieldA\": \"value1\"\n}\n\n".to_string(),
                         },
                     }),
                     selection: Selection {
@@ -526,14 +564,14 @@ Accept: */*
                     selection: Selection {
                         filename: Path::new("").to_path_buf(),
                         start: Position { line: 22, col: 1 },
-                        end: Position { line: 24, col: 1 },
+                        end: Position { line: 25, col: 1 },
                     },
                 },
                 handler: None,
                 selection: Selection {
                     filename: Path::new("").to_path_buf(),
                     start: Position { line: 22, col: 1 },
-                    end: Position { line: 24, col: 1 },
+                    end: Position { line: 25, col: 1 },
                 },
             },
         ],

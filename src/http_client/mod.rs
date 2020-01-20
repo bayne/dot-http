@@ -83,7 +83,8 @@ fn set_body(
         state: Processed { value: body },
     }) = body
     {
-        request_builder = request_builder.body::<Body>(body.clone().into());
+        let body = String::from(body.trim());
+        request_builder = request_builder.body::<Body>(body.into());
     }
     request_builder
 }
