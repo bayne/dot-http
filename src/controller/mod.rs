@@ -88,9 +88,18 @@ impl Controller {
         let file = &mut parse(script_file.to_path_buf(), file.as_str()).map_err(|err| Error {
             kind: ParseRequestScript(err),
         })?;
-        let env_file = read_to_string(env_file).map_err(|err| Error {
-            kind: ErrorKind::ReadEnvFile(env_file.to_path_buf(), err),
-        })?;
+
+        let env_file = match read_to_string(env_file) {
+            Ok(script) => Ok(script),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                let env = String::from(BoaScriptEngine::empty());
+                std::fs::write(env_file, &env).unwrap();
+                Ok(env)
+            }
+            Err(e) => Err(Error {
+                kind: ErrorKind::ReadEnvFile(env_file.to_path_buf(), e),
+            }),
+        }?;
 
         let snapshot_script = match read_to_string(snapshot_file) {
             Ok(script) => Ok(script),
