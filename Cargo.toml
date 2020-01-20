@@ -16,6 +16,8 @@ path = "src/main.rs"
 
 [badges]
 maintenance = { status = "experimental" }
+travis-ci = { repository = "bayne/dot-http" }
+appveyor = { repository = "bayne/dot-http", branch = "master", service = "github" }
 
 [dependencies]
 Boa = "0.5.1"
