@@ -1,8 +1,9 @@
+use crate::model::{Response, Version};
 use crate::response_handler::boa::DefaultResponseHandler;
-use crate::response_handler::{ResponseHandler, ScriptResponse};
+use crate::response_handler::{DefaultResponse, ResponseHandler, ScriptResponse};
 use crate::script_engine::boa::BoaScriptEngine;
 use crate::script_engine::{Script, ScriptEngine};
-use serde_json::Map;
+use serde_json::{Map, Value};
 
 #[test]
 fn test_headers_available_in_response() {
@@ -22,7 +23,6 @@ fn test_headers_available_in_response() {
         body: "{}".to_string(),
         headers,
         status: 200,
-        content_type: "application/json".to_string(),
     };
 
     response_handler
@@ -37,4 +37,25 @@ fn test_headers_available_in_response() {
     let result = engine.execute(expr).unwrap();
 
     assert_eq!("SomeTokenValue", result);
+}
+
+#[test]
+fn test_headers_for_script_response() {
+    let response = DefaultResponse(Response {
+        version: Version::Http11,
+        status_code: 0,
+        status: "".to_string(),
+        headers: vec![(
+            String::from("Content-Type"),
+            String::from("application/json"),
+        )],
+        body: "".to_string(),
+    });
+
+    let script_response: ScriptResponse = response.into();
+
+    assert_eq!(
+        script_response.headers.get("Content-Type"),
+        Some(&Value::String(String::from("application/json")))
+    )
 }
