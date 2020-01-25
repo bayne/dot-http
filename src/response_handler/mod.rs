@@ -96,11 +96,26 @@ impl DefaultOutputter {
     }
 }
 
+fn prettify_response_body(body: &str) -> String {
+    match serde_json::from_str(body) {
+        Ok(serde_json::Value::Object(response_body)) => {
+            serde_json::to_string_pretty(&response_body).unwrap()
+        }
+        _ => String::from(body),
+    }
+}
+
 impl Outputter for DefaultOutputter {
     type Response = DefaultResponse;
 
     fn output_response(&mut self, response: &Self::Response) -> Result<(), Error> {
         println!("{}", response);
+
+        let DefaultResponse(Response { body, .. }) = response;
+
+        let body = prettify_response_body(body.as_str());
+        println!("\n{}", body);
+
         Ok(())
     }
 
@@ -152,12 +167,10 @@ impl Display for DefaultResponse {
             .collect();
         formatter.write_fmt(format_args!(
             "{http_version} {status}\
-             {headers}
-             {body}",
+             {headers}",
             http_version = response.version,
             status = response.status,
-            headers = headers,
-            body = format!("\n{}", response.body),
+            headers = headers
         ))
     }
 }

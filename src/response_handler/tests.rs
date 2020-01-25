@@ -1,5 +1,9 @@
+use crate::model::{Response, Version};
 use crate::response_handler::boa::DefaultResponseHandler;
-use crate::response_handler::{ResponseHandler, ScriptResponse};
+use crate::response_handler::{
+    prettify_response_body, DefaultOutputter, DefaultResponse, Outputter, ResponseHandler,
+    ScriptResponse,
+};
 use crate::script_engine::boa::BoaScriptEngine;
 use crate::script_engine::{Script, ScriptEngine};
 use serde_json::Map;
@@ -37,4 +41,22 @@ fn test_headers_available_in_response() {
     let result = engine.execute(expr).unwrap();
 
     assert_eq!("SomeTokenValue", result);
+}
+
+#[test]
+fn test_output_is_prettified() {
+    let pretty_body = prettify_response_body("simple");
+
+    assert_eq!("simple", pretty_body);
+
+    let pretty_body = prettify_response_body("{\"stuff\": \"andThings\"}");
+
+    assert_eq!(
+        "\
+{
+  \"stuff\": \"andThings\"
+}\
+",
+        pretty_body
+    );
 }
