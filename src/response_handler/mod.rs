@@ -6,6 +6,7 @@ use serde::Serialize;
 use serde_json::Map;
 use std::fmt::Display;
 use std::fmt::Formatter;
+use std::iter::FromIterator;
 
 pub mod boa;
 
@@ -180,7 +181,6 @@ pub struct ScriptResponse {
     body: String,
     headers: Map<String, serde_json::Value>,
     status: u16,
-    content_type: String,
 }
 
 impl From<Response> for DefaultResponse {
@@ -192,11 +192,17 @@ impl From<Response> for DefaultResponse {
 impl From<DefaultResponse> for ScriptResponse {
     fn from(response: DefaultResponse) -> Self {
         let DefaultResponse(response) = response;
+        let headers = Map::from_iter::<Vec<(String, serde_json::value::Value)>>(
+            response
+                .headers
+                .iter()
+                .map(|(key, value)| (key.clone(), serde_json::value::Value::String(value.clone())))
+                .collect(),
+        );
         ScriptResponse {
             body: response.body,
-            headers: Map::new(),
+            headers,
             status: response.status_code,
-            content_type: String::new(),
         }
     }
 }
