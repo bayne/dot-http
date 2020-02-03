@@ -348,7 +348,7 @@ fn main() {
         .arg(
             Arg::with_name("ALL")
                 .short("a")
-                .help("Run through the entire file"),
+                .help("Sequentially run all the requests in the file"),
         )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
