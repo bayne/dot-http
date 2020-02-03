@@ -2,3 +2,4 @@
 target
 *.swp
 .snapshot.json
+.idea

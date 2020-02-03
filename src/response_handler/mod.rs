@@ -38,8 +38,9 @@ pub trait ResponseHandler {
     type Engine: ScriptEngine;
     type Outputter: Outputter<Response = Self::Response>;
     type Response: Into<ScriptResponse>;
+
     fn handle(
-        &mut self,
+        &self,
         engine: &mut Self::Engine,
         outputter: &mut Self::Outputter,
         request_script: &RequestScript<Processed>,

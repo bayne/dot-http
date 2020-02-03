@@ -117,9 +117,9 @@ pub trait ScriptEngine {
 
     fn initialize(
         &mut self,
-        env_script: String,
-        env: String,
-        snapshot_script: String,
+        env_script: &String,
+        env: &String,
+        snapshot_script: &String,
     ) -> Result<(), Error>;
 
     fn snapshot(&mut self) -> Result<String, Error>;

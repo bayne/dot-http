@@ -345,11 +345,17 @@ fn main() {
                 .validator(is_valid_line_number)
                 .required(true),
         )
+        .arg(
+            Arg::with_name("ALL")
+                .short("a")
+                .help("Run through the entire file"),
+        )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
 
     let script_file = matches.value_of("FILE").unwrap().to_string();
     let offset: usize = matches.value_of("LINE").unwrap().parse().unwrap();
+    let all: bool = matches.is_present("ALL");
     let env = matches.value_of("ENVIRONMENT").unwrap().to_string();
     let env_file = matches.value_of("ENV_FILE").unwrap().to_string();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap().to_string();
@@ -357,6 +363,7 @@ fn main() {
     let mut controller = Controller::default();
     match controller.execute(
         offset,
+        all,
         env,
         Path::new(&script_file),
         Path::new(&snapshot_file),

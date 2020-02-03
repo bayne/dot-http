@@ -11,7 +11,11 @@ use serde_json::{Map, Value};
 fn test_headers_available_in_response() {
     let mut engine = BoaScriptEngine::new();
     engine
-        .initialize(String::from("{}"), String::from("dev"), String::from("{}"))
+        .initialize(
+            &String::from("{}"),
+            &String::from("dev"),
+            &String::from("{}"),
+        )
         .unwrap();
     let response_handler = DefaultResponseHandler;
 

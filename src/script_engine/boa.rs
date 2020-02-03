@@ -114,18 +114,21 @@ impl ScriptEngine for BoaScriptEngine {
 
     fn initialize(
         &mut self,
-        env_script: String,
-        env: String,
-        snapshot_script: String,
+        env_script: &String,
+        env: &String,
+        snapshot_script: &String,
     ) -> Result<(), Error> {
-        let env_file = declare_object(self, env_script, "_env_file")?;
+        // create a new realm to prevent state leaking across requests
+        self.engine.realm = Realm::create();
+
+        let env_file = declare_object(self, env_script.clone(), "_env_file")?;
         self.engine.run(&env_file).unwrap();
 
         let env = format!("var _env = _env_file[\"{}\"];", env);
         let env = self.parse(Script::internal_script(env)).unwrap();
         self.execute(env).unwrap_or_default();
 
-        let snapshot = declare_object(self, snapshot_script, "_snapshot").unwrap();
+        let snapshot = declare_object(self, snapshot_script.clone(), "_snapshot").unwrap();
         self.engine.run(&snapshot).unwrap();
 
         let init = include_str!("init.js");
