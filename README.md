@@ -2,8 +2,8 @@
 
 # dot-http
 
-![Verify build](https://github.com/bayne/dot-http/workflows/Verify/badge.svg)
-![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)
+![Verify](https://github.com/bayne/dot-http/workflows/Verify/badge.svg?branch=master)
+[![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)](https://github.com/carloscuesta/gitmoji)
 ![Powered by Rust](https://img.shields.io/badge/Powered%20By-Rust-orange?style=flat-square)
 
 dot-http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with just a smidgen of magic to make it more practical for someone who builds and tests APIs.
