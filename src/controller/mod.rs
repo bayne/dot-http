@@ -77,6 +77,7 @@ impl Controller {
     pub fn execute(
         &mut self,
         offset: usize,
+        all: bool,
         env: String,
         script_file: &Path,
         snapshot_file: &Path,
@@ -101,7 +102,7 @@ impl Controller {
             }),
         }?;
 
-        let snapshot_script = match read_to_string(snapshot_file) {
+        let mut snapshot = match read_to_string(snapshot_file) {
             Ok(script) => Ok(script),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 Ok(String::from(BoaScriptEngine::empty()))
@@ -114,21 +115,26 @@ impl Controller {
         let engine = &mut self.engine;
         let outputter = &mut self.outputter;
 
-        engine.initialize(env_file, env, snapshot_script).unwrap();
+        engine.initialize(&env_file, &env).unwrap();
 
-        let request_script = file.request_script(offset);
-        let request_script = request_script.process(engine).map_err(|err| Error {
-            kind: ScriptEngineError(script_file.to_path_buf(), err),
-        })?;
+        let request_scripts = file.request_scripts(offset, all);
 
-        outputter.output_request(&request_script.request).unwrap();
+        for request_script in request_scripts {
+            engine.reset(&snapshot).unwrap();
 
-        let response = request_script.request.execute()?;
+            let request_script = request_script.process(engine).map_err(|err| Error {
+                kind: ScriptEngineError(script_file.to_path_buf(), err),
+            })?;
 
-        self.response_handler
-            .handle(engine, outputter, &request_script, response.into())
-            .unwrap();
-        let snapshot = engine.snapshot().unwrap();
+            outputter.output_request(&request_script.request).unwrap();
+
+            let response = request_script.request.execute()?;
+
+            self.response_handler
+                .handle(engine, outputter, &request_script, response.into())
+                .unwrap();
+            snapshot = engine.snapshot().unwrap();
+        }
 
         std::fs::write(snapshot_file, snapshot).unwrap();
 
@@ -137,13 +143,23 @@ impl Controller {
 }
 
 impl File {
-    fn request_script(&self, offset: usize) -> &RequestScript<Unprocessed> {
-        self.request_scripts
+    fn request_scripts(
+        &self,
+        offset: usize,
+        all: bool,
+    ) -> impl Iterator<Item = &RequestScript<Unprocessed>> {
+        let mut scripts = self
+            .request_scripts
             .iter()
-            .find(|request_script| {
-                request_script.selection.start.line <= offset
+            .filter(move |request_script| {
+                (all || request_script.selection.start.line <= offset)
                     && request_script.selection.end.line > offset
             })
-            .unwrap()
+            .peekable();
+
+        match scripts.peek() {
+            Some(_) => scripts,
+            None => panic!("Couldn't find any scripts in our file at the given line number"),
+        }
     }
 }
