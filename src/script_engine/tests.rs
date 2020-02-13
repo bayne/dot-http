@@ -8,17 +8,10 @@ use crate::script_engine::{Processable, Script, ScriptEngine};
 #[cfg(test)]
 fn setup(src: &'static str) -> BoaScriptEngine {
     let mut engine = BoaScriptEngine::new();
-    engine
-        .initialize(
-            &String::from("{}"),
-            &String::from("dev"),
-            &String::from(src),
-        )
-        .unwrap();
-    let expr = engine
-        .parse(Script::internal_script(String::from(src)))
-        .unwrap();
-    engine.execute(expr).unwrap();
+    engine.initialize(&"{}", &"dev").unwrap();
+    engine.reset(src).unwrap();
+    let expr = engine.parse(&Script::internal_script(src)).unwrap();
+    engine.execute(&expr).unwrap();
     return engine;
 }
 
@@ -84,13 +77,7 @@ fn test_parse_error() {
 #[test]
 fn test_initialize_error() {
     let mut engine = BoaScriptEngine::new();
-    let error = engine
-        .initialize(
-            &String::from("invalid"),
-            &String::from("dev"),
-            &String::from("bad"),
-        )
-        .unwrap_err();
+    let error = engine.initialize(&"invalid", &"dev").unwrap_err();
 
     assert_eq!(
         error.to_string(),

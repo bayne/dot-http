@@ -50,11 +50,11 @@ pub trait ResponseHandler {
         if let Some(Handler { script, selection }) = &request_script.handler {
             let script_response: ScriptResponse = response.into();
             self.inject(engine, script_response)?;
-            let expr = engine.parse(Script {
+            let expr = engine.parse(&Script {
                 selection: selection.clone(),
-                src: script.clone(),
+                src: script,
             })?;
-            engine.execute(expr)?;
+            engine.execute(&expr)?;
         }
         Ok(())
     }
@@ -68,8 +68,8 @@ pub trait ResponseHandler {
             "var response = {};",
             serde_json::to_string(&script_response).unwrap()
         );
-        let expr = engine.parse(Script::internal_script(script))?;
-        engine.execute(expr)?;
+        let expr = engine.parse(&Script::internal_script(&script))?;
+        engine.execute(&expr)?;
         if let Ok(serde_json::Value::Object(response_body)) =
             serde_json::from_str(script_response.body.as_str())
         {
@@ -77,8 +77,8 @@ pub trait ResponseHandler {
                 "response.body = {};",
                 serde_json::to_string(&response_body).unwrap()
             );
-            let expr = engine.parse(Script::internal_script(script)).unwrap();
-            engine.execute(expr).unwrap();
+            let expr = engine.parse(&Script::internal_script(&script)).unwrap();
+            engine.execute(&expr).unwrap();
         }
         Ok(())
     }

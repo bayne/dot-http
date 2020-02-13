@@ -19,13 +19,30 @@ use std::convert::From;
 
 pub struct BoaScriptEngine {
     engine: Interpreter,
+    initial_state: Option<InitialState>,
+}
+
+struct InitialState {
+    env_file: Expr,
+    env: Expression<Expr>,
+    init: Expression<Expr>,
+}
+
+/// Capture the main interactions with our [[Interpreter]] as a trait so we can disjointly borrow
+/// against our [[BoaScriptEngine]] struct
+trait InternalBoaScriptEngine {
+    fn execute(&mut self, expression: &Expression<Expr>) -> Result<String, Error>;
+    fn parse(&self, script: &Script) -> Result<Expression<Expr>, Error>;
 }
 
 impl BoaScriptEngine {
     pub fn new() -> BoaScriptEngine {
         let realm = Realm::create();
         let engine: Interpreter = Executor::new(realm);
-        BoaScriptEngine { engine }
+        BoaScriptEngine {
+            engine,
+            initial_state: None,
+        }
     }
 }
 
@@ -57,7 +74,7 @@ fn get_global(var: String) -> Expr {
 impl ScriptEngine for BoaScriptEngine {
     type Expr = Expr;
 
-    fn process_script(&mut self, expression: Expression<Self::Expr>) -> Expression<Self::Expr> {
+    fn process_script(&self, expression: Expression<Self::Expr>) -> Expression<Self::Expr> {
         match &expression {
             Expression {
                 expr: Expr { def: Block(expr) },
@@ -75,25 +92,98 @@ impl ScriptEngine for BoaScriptEngine {
         }
     }
 
-    fn execute(&mut self, expression: Expression<Self::Expr>) -> Result<String, Error> {
-        Ok(self
-            .engine
-            .run(&expression.expr)
+    fn execute(&mut self, expression: &Expression<Self::Expr>) -> Result<String, Error> {
+        self.engine.execute(expression)
+    }
+
+    fn parse(&self, script: &Script) -> Result<Expression<Self::Expr>, Error> {
+        self.engine.parse(script)
+    }
+
+    fn empty() -> &'static str {
+        "{}"
+    }
+
+    fn initialize(&mut self, env_script: &str, env: &str) -> Result<(), Error> {
+        let env_file = declare_object(&self.engine, env_script, "_env_file")?;
+
+        let env = format!("var _env = _env_file[\"{}\"];", env);
+        let env = self.parse(&Script::internal_script(&env))?;
+
+        let init = include_str!("init.js");
+        let init = self.parse(&Script::internal_script(&String::from(init)))?;
+
+        // build up our initial state
+        self.initial_state = Some(InitialState {
+            env_file,
+            env,
+            init,
+        });
+
+        Ok(())
+    }
+
+    fn reset(&mut self, snapshot_script: &str) -> Result<(), Error> {
+        let BoaScriptEngine {
+            engine,
+            initial_state,
+        } = self;
+
+        match initial_state {
+            Some(InitialState {
+                env_file,
+                env,
+                init,
+            }) => {
+                // drop our existing realm, clearing our out current JS state
+                engine.realm = Realm::create();
+
+                let snapshot = declare_object(engine, snapshot_script, "_snapshot")?;
+
+                engine.run(&env_file).map_err(|err_value| Error {
+                    selection: Selection::none(),
+                    kind: Execute(format!("Error when executing javascript: {}", err_value)),
+                })?;
+                engine.execute(env)?;
+                engine.run(&snapshot).map_err(|err_value| Error {
+                    selection: Selection::none(),
+                    kind: Execute(format!("Error when executing javascript: {}", err_value)),
+                })?;
+
+                engine.execute(init)?;
+
+                Ok(())
+            }
+            None => panic!("We must initialize our engine before we can use it"),
+        }
+    }
+
+    fn snapshot(&mut self) -> Result<String, Error> {
+        let Expression { expr, .. } =
+            self.parse(&Script::internal_script(&String::from("_snapshot")))?;
+        let result = self.engine.run(&expr).unwrap();
+        Ok(to_string_pretty(&to_json(&result)).expect(""))
+    }
+}
+
+impl InternalBoaScriptEngine for Interpreter {
+    fn execute(&mut self, expression: &Expression<Expr>) -> Result<String, Error> {
+        self.run(&expression.expr)
             .map_err(|_err| Error {
-                selection: expression.selection,
+                selection: expression.selection.clone(),
                 kind: Execute(String::from(
                     "Unknown error when trying to execute javascript",
                 )),
-            })?
-            .to_string())
+            })
+            .map(|value| value.to_string())
     }
 
-    fn parse(&mut self, script: Script) -> Result<Expression<Self::Expr>, Error> {
+    fn parse(&self, script: &Script) -> Result<Expression<Expr>, Error> {
         let Script {
             src: script,
             selection,
         } = script;
-        let mut lexer = Lexer::new(script.as_str());
+        let mut lexer = Lexer::new(script);
         lexer.lex().map_err(|err| Error {
             selection: selection.clone(),
             kind: ErrorKind::Execute(err.to_string()),
@@ -102,49 +192,10 @@ impl ScriptEngine for BoaScriptEngine {
         Ok(Expression {
             selection: selection.clone(),
             expr: Parser::new(tokens).parse_all().map_err(|_err| Error {
-                selection,
+                selection: selection.clone(),
                 kind: ErrorKind::Execute("Error while parsing".to_string()),
             })?,
         })
-    }
-
-    fn empty() -> &'static str {
-        "{}"
-    }
-
-    fn initialize(
-        &mut self,
-        env_script: &str,
-        env: &str,
-        snapshot_script: &str,
-    ) -> Result<(), Error> {
-        // create a new realm to prevent state leaking across requests
-        self.engine.realm = Realm::create();
-
-        let env_file = declare_object(self, env_script.to_string(), "_env_file")?;
-        self.engine.run(&env_file).unwrap();
-
-        let env = format!("var _env = _env_file[\"{}\"];", env);
-        let env = self.parse(Script::internal_script(env)).unwrap();
-        self.execute(env).unwrap_or_default();
-
-        let snapshot = declare_object(self, snapshot_script.to_string(), "_snapshot").unwrap();
-        self.engine.run(&snapshot).unwrap();
-
-        let init = include_str!("init.js");
-        let init = self
-            .parse(Script::internal_script(String::from(init)))
-            .unwrap();
-
-        self.execute(init).unwrap();
-        Ok(())
-    }
-
-    fn snapshot(&mut self) -> Result<String, Error> {
-        let Expression { expr, .. } =
-            self.parse(Script::internal_script(String::from("_snapshot")))?;
-        let result = self.engine.run(&expr).unwrap();
-        Ok(to_string_pretty(&to_json(&result)).expect(""))
     }
 }
 
@@ -169,13 +220,12 @@ fn to_json(value: &ValueData) -> JSONValue {
     }
 }
 
-fn declare_object(
-    engine: &mut BoaScriptEngine,
-    script: String,
-    var_name: &'static str,
-) -> Result<Expr, Error> {
+fn declare_object<E>(engine: &E, script: &str, var_name: &'static str) -> Result<Expr, Error>
+where
+    E: InternalBoaScriptEngine,
+{
     let Expression { expr: env_file, .. } = engine
-        .parse(Script::internal_script(script))
+        .parse(&Script::internal_script(script))
         .map_err(|_| initialize_error(ErrorKind::ParseInitializeObject(var_name)))?;
     let env_file = match &env_file {
         Expr { def: Block(expr) } => match &expr[..] {

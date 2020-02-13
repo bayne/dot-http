@@ -10,13 +10,7 @@ use serde_json::{Map, Value};
 #[test]
 fn test_headers_available_in_response() {
     let mut engine = BoaScriptEngine::new();
-    engine
-        .initialize(
-            &String::from("{}"),
-            &String::from("dev"),
-            &String::from("{}"),
-        )
-        .unwrap();
+    engine.initialize("{}", "dev").unwrap();
     let response_handler = DefaultResponseHandler;
 
     let mut headers = Map::new();
@@ -36,11 +30,9 @@ fn test_headers_available_in_response() {
         .unwrap();
 
     let expr = engine
-        .parse(Script::internal_script(String::from(
-            "response.headers['X-Auth-Token']",
-        )))
+        .parse(&Script::internal_script("response.headers['X-Auth-Token']"))
         .unwrap();
-    let result = engine.execute(expr).unwrap();
+    let result = engine.execute(&expr).unwrap();
 
     assert_eq!("SomeTokenValue", result);
 }
@@ -82,4 +74,11 @@ fn test_headers_for_script_response() {
         script_response.headers.get("Content-Type"),
         Some(&Value::String(String::from("application/json")))
     )
+}
+
+#[test]
+#[should_panic]
+fn test_reset_before_initialize() {
+    let mut engine = BoaScriptEngine::new();
+    let _ = engine.reset("{}");
 }

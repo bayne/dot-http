@@ -93,13 +93,13 @@ pub struct Expression<T> {
     expr: T,
 }
 
-pub struct Script {
+pub struct Script<'a> {
     pub selection: Selection,
-    pub src: String,
+    pub src: &'a str,
 }
 
-impl Script {
-    pub fn internal_script(src: String) -> Script {
+impl<'a> Script<'a> {
+    pub fn internal_script(src: &str) -> Script {
         Script {
             src,
             selection: Selection::none(),
@@ -110,17 +110,13 @@ impl Script {
 pub trait ScriptEngine {
     type Expr;
 
-    fn process_script(&mut self, expression: Expression<Self::Expr>) -> Expression<Self::Expr>;
-    fn execute(&mut self, expression: Expression<Self::Expr>) -> Result<String, Error>;
-    fn parse(&mut self, script: Script) -> Result<Expression<Self::Expr>, Error>;
+    fn process_script(&self, expression: Expression<Self::Expr>) -> Expression<Self::Expr>;
+    fn execute(&mut self, expression: &Expression<Self::Expr>) -> Result<String, Error>;
+    fn parse(&self, script: &Script) -> Result<Expression<Self::Expr>, Error>;
     fn empty() -> &'static str;
 
-    fn initialize(
-        &mut self,
-        env_script: &str,
-        env: &str,
-        snapshot_script: &str,
-    ) -> Result<(), Error>;
+    fn initialize(&mut self, env_script: &str, env: &str) -> Result<(), Error>;
+    fn reset(&mut self, snapshot_script: &str) -> Result<(), Error>;
 
     fn snapshot(&mut self) -> Result<String, Error>;
 }
@@ -142,9 +138,9 @@ impl<E, T: ScriptEngine<Expr = E>> Processable<T> for Value<Unprocessed> {
                     .map(|inline_script| {
                         Ok((
                             &inline_script.placeholder,
-                            engine.parse(Script {
+                            engine.parse(&Script {
                                 selection: inline_script.selection.clone(),
-                                src: inline_script.script.clone(),
+                                src: &inline_script.script,
                             })?,
                         ))
                     })
@@ -153,7 +149,7 @@ impl<E, T: ScriptEngine<Expr = E>> Processable<T> for Value<Unprocessed> {
                 let mut interpolated = value.clone();
                 for (placeholder, expr) in evaluated {
                     let expr = engine.process_script(expr);
-                    let result = engine.execute(expr)?;
+                    let result = engine.execute(&expr)?;
                     interpolated = interpolated.replacen(placeholder.as_str(), result.as_str(), 1);
                 }
 

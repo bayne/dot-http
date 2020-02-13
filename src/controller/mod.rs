@@ -115,10 +115,12 @@ impl Controller {
         let engine = &mut self.engine;
         let outputter = &mut self.outputter;
 
+        engine.initialize(&env_file, &env).unwrap();
+
         let request_scripts = file.request_scripts(offset, all);
 
         for request_script in request_scripts {
-            engine.initialize(&env_file, &env, &snapshot).unwrap();
+            engine.reset(&snapshot).unwrap();
 
             let request_script = request_script.process(engine).map_err(|err| Error {
                 kind: ScriptEngineError(script_file.to_path_buf(), err),
