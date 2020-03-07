@@ -35,6 +35,11 @@ trait InternalBoaScriptEngine {
     fn parse(&self, script: &Script) -> Result<Expression<Expr>, Error>;
 }
 
+impl Default for BoaScriptEngine {
+    fn default() -> Self {
+        BoaScriptEngine::new()
+    }
+}
 impl BoaScriptEngine {
     pub fn new() -> BoaScriptEngine {
         let realm = Realm::create();

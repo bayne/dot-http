@@ -99,7 +99,7 @@ pub struct QuietController {
 impl Default for QuietController {
     fn default() -> Self {
         QuietController {
-            outputter: QuietOutputter::new(),
+            outputter: QuietOutputter::default(),
             engine: BoaScriptEngine::new(),
             response_handler: QuietResponseHandler {},
         }
@@ -109,16 +109,13 @@ impl ControllerImpl for QuietController {
     type Engine = BoaScriptEngine;
     type Outputter = QuietOutputter;
     type Response = DefaultResponse;
+    type ResponseHandler = QuietResponseHandler;
     fn components(
         &mut self,
     ) -> (
         &mut Self::Engine,
         &mut Self::Outputter,
-        &mut dyn ResponseHandler<
-            Engine = Self::Engine,
-            Outputter = Self::Outputter,
-            Response = Self::Response,
-        >,
+        &mut Self::ResponseHandler,
     ) {
         (
             &mut self.engine,
@@ -137,7 +134,7 @@ pub struct DefaultController {
 impl Default for DefaultController {
     fn default() -> Self {
         DefaultController {
-            outputter: DefaultOutputter::new(),
+            outputter: DefaultOutputter::default(),
             engine: BoaScriptEngine::new(),
             response_handler: DefaultResponseHandler {},
         }
@@ -147,16 +144,13 @@ impl ControllerImpl for DefaultController {
     type Engine = BoaScriptEngine;
     type Outputter = DefaultOutputter;
     type Response = DefaultResponse;
+    type ResponseHandler = DefaultResponseHandler;
     fn components(
         &mut self,
     ) -> (
         &mut Self::Engine,
         &mut Self::Outputter,
-        &mut dyn ResponseHandler<
-            Engine = Self::Engine,
-            Outputter = Self::Outputter,
-            Response = Self::Response,
-        >,
+        &mut Self::ResponseHandler,
     ) {
         (
             &mut self.engine,
@@ -170,6 +164,11 @@ pub trait ControllerImpl {
     type Engine: ScriptEngine;
     type Outputter: Outputter<Response = Self::Response>;
     type Response: Into<ScriptResponse> + From<Response>;
+    type ResponseHandler: ResponseHandler<
+        Engine = Self::Engine,
+        Outputter = Self::Outputter,
+        Response = Self::Response,
+    >;
 
     fn execute_impl(
         &mut self,
@@ -241,11 +240,7 @@ pub trait ControllerImpl {
     ) -> (
         &mut Self::Engine,
         &mut Self::Outputter,
-        &mut dyn ResponseHandler<
-            Engine = Self::Engine,
-            Outputter = Self::Outputter,
-            Response = Self::Response,
-        >,
+        &mut Self::ResponseHandler,
     );
 }
 

@@ -92,8 +92,8 @@ pub trait Outputter {
 
 pub struct DefaultOutputter;
 
-impl DefaultOutputter {
-    pub fn new() -> DefaultOutputter {
+impl Default for DefaultOutputter {
+    fn default() -> DefaultOutputter {
         DefaultOutputter {}
     }
 }
@@ -129,8 +129,8 @@ impl Outputter for DefaultOutputter {
 
 pub struct QuietOutputter;
 
-impl QuietOutputter {
-    pub fn new() -> QuietOutputter {
+impl Default for QuietOutputter {
+    fn default() -> QuietOutputter {
         QuietOutputter {}
     }
 }
