@@ -58,6 +58,38 @@ impl std::fmt::Display for Error {
     }
 }
 
+pub trait Controller {
+    fn execute(
+        &mut self,
+        offset: usize,
+        all: bool,
+        env: String,
+        script_file: &Path,
+        snapshot_file: &Path,
+        env_file: &Path,
+    ) -> Result<(), Error>;
+}
+
+impl<T, R, O, E, Exp> Controller for T
+where
+    T: ControllerImpl<Engine = E, Outputter = O, Response = R>,
+    R: Into<ScriptResponse> + From<Response>,
+    O: Outputter<Response = R>,
+    E: ScriptEngine<Expr = Exp>,
+{
+    fn execute(
+        &mut self,
+        offset: usize,
+        all: bool,
+        env: String,
+        script_file: &Path,
+        snapshot_file: &Path,
+        env_file: &Path,
+    ) -> Result<(), Error> {
+        self.execute_impl(offset, all, env, script_file, snapshot_file, env_file)
+    }
+}
+
 pub struct QuietController {
     engine: BoaScriptEngine,
     outputter: QuietOutputter,
@@ -73,7 +105,7 @@ impl Default for QuietController {
         }
     }
 }
-impl Controller for QuietController {
+impl ControllerImpl for QuietController {
     type Engine = BoaScriptEngine;
     type Outputter = QuietOutputter;
     type Response = DefaultResponse;
@@ -111,7 +143,7 @@ impl Default for DefaultController {
         }
     }
 }
-impl Controller for DefaultController {
+impl ControllerImpl for DefaultController {
     type Engine = BoaScriptEngine;
     type Outputter = DefaultOutputter;
     type Response = DefaultResponse;
@@ -134,12 +166,12 @@ impl Controller for DefaultController {
     }
 }
 
-pub trait Controller {
+pub trait ControllerImpl {
     type Engine: ScriptEngine;
     type Outputter: Outputter<Response = Self::Response>;
     type Response: Into<ScriptResponse> + From<Response>;
 
-    fn execute(
+    fn execute_impl(
         &mut self,
         offset: usize,
         all: bool,

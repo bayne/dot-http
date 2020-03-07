@@ -365,35 +365,22 @@ fn main() {
     let env_file = matches.value_of("ENV_FILE").unwrap().to_string();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap().to_string();
     let quiet: bool = matches.is_present("QUIET");
-    if quiet {
-        let mut controller = QuietController::default();
-        match controller.execute(
-            offset,
-            all,
-            env,
-            Path::new(&script_file),
-            Path::new(&snapshot_file),
-            Path::new(&env_file),
-        ) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("{}", e);
-            }
-        }
+    let mut controller: Box<dyn Controller> = if quiet {
+        Box::new(QuietController::default())
     } else {
-        let mut controller = DefaultController::default();
-        match controller.execute(
-            offset,
-            all,
-            env,
-            Path::new(&script_file),
-            Path::new(&snapshot_file),
-            Path::new(&env_file),
-        ) {
-            Ok(r) => r,
-            Err(e) => {
-                eprintln!("{}", e);
-            }
+        Box::new(DefaultController::default())
+    };
+    match controller.execute(
+        offset,
+        all,
+        env,
+        Path::new(&script_file),
+        Path::new(&snapshot_file),
+        Path::new(&env_file),
+    ) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("{}", e);
         }
     }
 }
