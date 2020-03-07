@@ -127,6 +127,26 @@ impl Outputter for DefaultOutputter {
     }
 }
 
+pub struct QuietOutputter;
+
+impl QuietOutputter {
+    pub fn new() -> QuietOutputter {
+        QuietOutputter {}
+    }
+}
+
+impl Outputter for QuietOutputter {
+    type Response = DefaultResponse;
+
+    fn output_response(&mut self, _response: &Self::Response) -> Result<(), Error> {
+        Ok(())
+    }
+
+    fn output_request(&mut self, _request: &Request<Processed>) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
 pub struct DefaultResponse(Response);
 
 impl Display for Method {

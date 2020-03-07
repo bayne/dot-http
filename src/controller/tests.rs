@@ -1,4 +1,4 @@
-use crate::controller::Controller;
+use crate::controller::{Controller, DefaultController};
 use http_test_server::{Request, TestServer};
 use std::io::Write;
 use std::sync::mpsc::Receiver;
@@ -31,7 +31,7 @@ fn test() {
     .unwrap();
 
     let script_file = script_file.into_temp_path();
-    let mut controller = Controller::default();
+    let mut controller = DefaultController::default();
 
     let offset = 1;
     let env = String::from("dev");
@@ -207,7 +207,7 @@ fn multi_line_setup(offset: usize, all: bool, scripts: &str) -> Receiver<Request
     writeln!(script_file, "{}", scripts,).unwrap();
 
     let script_file = script_file.into_temp_path();
-    let mut controller = Controller::default();
+    let mut controller = DefaultController::default();
 
     let env = String::from("dev");
 

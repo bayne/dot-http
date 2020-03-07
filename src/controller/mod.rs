@@ -3,8 +3,10 @@ use crate::controller::ErrorKind::{
 };
 use crate::model::*;
 use crate::parser::parse;
-use crate::response_handler::boa::DefaultResponseHandler;
-use crate::response_handler::{DefaultOutputter, Outputter, ResponseHandler};
+use crate::response_handler::boa::{DefaultResponseHandler, QuietResponseHandler};
+use crate::response_handler::{
+    DefaultOutputter, DefaultResponse, Outputter, QuietOutputter, ResponseHandler, ScriptResponse,
+};
 use crate::script_engine::boa::BoaScriptEngine;
 use crate::script_engine::{Processable, ScriptEngine};
 use crate::{parser, script_engine};
@@ -56,25 +58,88 @@ impl std::fmt::Display for Error {
     }
 }
 
-pub struct Controller {
+pub struct QuietController {
+    engine: BoaScriptEngine,
+    outputter: QuietOutputter,
+    response_handler: QuietResponseHandler,
+}
+
+impl Default for QuietController {
+    fn default() -> Self {
+        QuietController {
+            outputter: QuietOutputter::new(),
+            engine: BoaScriptEngine::new(),
+            response_handler: QuietResponseHandler {},
+        }
+    }
+}
+impl Controller for QuietController {
+    type Engine = BoaScriptEngine;
+    type Outputter = QuietOutputter;
+    type Response = DefaultResponse;
+    fn components(
+        &mut self,
+    ) -> (
+        &mut Self::Engine,
+        &mut Self::Outputter,
+        &mut dyn ResponseHandler<
+            Engine = Self::Engine,
+            Outputter = Self::Outputter,
+            Response = Self::Response,
+        >,
+    ) {
+        (
+            &mut self.engine,
+            &mut self.outputter,
+            &mut self.response_handler,
+        )
+    }
+}
+
+pub struct DefaultController {
     engine: BoaScriptEngine,
     outputter: DefaultOutputter,
     response_handler: DefaultResponseHandler,
 }
 
-impl Default for Controller {
+impl Default for DefaultController {
     fn default() -> Self {
-        let outputter: DefaultOutputter = DefaultOutputter::new();
-        Controller {
-            outputter,
+        DefaultController {
+            outputter: DefaultOutputter::new(),
             engine: BoaScriptEngine::new(),
             response_handler: DefaultResponseHandler {},
         }
     }
 }
+impl Controller for DefaultController {
+    type Engine = BoaScriptEngine;
+    type Outputter = DefaultOutputter;
+    type Response = DefaultResponse;
+    fn components(
+        &mut self,
+    ) -> (
+        &mut Self::Engine,
+        &mut Self::Outputter,
+        &mut dyn ResponseHandler<
+            Engine = Self::Engine,
+            Outputter = Self::Outputter,
+            Response = Self::Response,
+        >,
+    ) {
+        (
+            &mut self.engine,
+            &mut self.outputter,
+            &mut self.response_handler,
+        )
+    }
+}
 
-impl Controller {
-    pub fn execute(
+pub trait Controller {
+    type Engine: ScriptEngine;
+    type Outputter: Outputter<Response = Self::Response>;
+    type Response: Into<ScriptResponse> + From<Response>;
+
+    fn execute(
         &mut self,
         offset: usize,
         all: bool,
@@ -112,8 +177,7 @@ impl Controller {
             }),
         }?;
 
-        let engine = &mut self.engine;
-        let outputter = &mut self.outputter;
+        let (engine, outputter, response_handler) = self.components();
 
         engine.initialize(&env_file, &env).unwrap();
 
@@ -130,7 +194,7 @@ impl Controller {
 
             let response = request_script.request.execute()?;
 
-            self.response_handler
+            response_handler
                 .handle(engine, outputter, &request_script, response.into())
                 .unwrap();
             snapshot = engine.snapshot().unwrap();
@@ -140,6 +204,17 @@ impl Controller {
 
         Ok(())
     }
+    fn components(
+        &mut self,
+    ) -> (
+        &mut Self::Engine,
+        &mut Self::Outputter,
+        &mut dyn ResponseHandler<
+            Engine = Self::Engine,
+            Outputter = Self::Outputter,
+            Response = Self::Response,
+        >,
+    );
 }
 
 impl File {

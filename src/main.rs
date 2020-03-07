@@ -306,7 +306,7 @@ mod parser;
 mod response_handler;
 mod script_engine;
 
-use crate::controller::Controller;
+use crate::controller::{Controller, DefaultController, QuietController};
 use clap::{App, Arg};
 use std::path::Path;
 
@@ -350,6 +350,11 @@ fn main() {
                 .short("a")
                 .help("Sequentially run all the requests in the file"),
         )
+        .arg(
+            Arg::with_name("QUIET")
+                .short("q")
+                .help("Sequentially run all the requests in the file"),
+        )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
 
@@ -359,19 +364,36 @@ fn main() {
     let env = matches.value_of("ENVIRONMENT").unwrap().to_string();
     let env_file = matches.value_of("ENV_FILE").unwrap().to_string();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap().to_string();
-
-    let mut controller = Controller::default();
-    match controller.execute(
-        offset,
-        all,
-        env,
-        Path::new(&script_file),
-        Path::new(&snapshot_file),
-        Path::new(&env_file),
-    ) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("{}", e);
+    let quiet: bool = matches.is_present("QUIET");
+    if quiet {
+        let mut controller = QuietController::default();
+        match controller.execute(
+            offset,
+            all,
+            env,
+            Path::new(&script_file),
+            Path::new(&snapshot_file),
+            Path::new(&env_file),
+        ) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+        }
+    } else {
+        let mut controller = DefaultController::default();
+        match controller.execute(
+            offset,
+            all,
+            env,
+            Path::new(&script_file),
+            Path::new(&snapshot_file),
+            Path::new(&env_file),
+        ) {
+            Ok(r) => r,
+            Err(e) => {
+                eprintln!("{}", e);
+            }
         }
     }
 }
