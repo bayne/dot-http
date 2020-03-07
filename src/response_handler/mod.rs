@@ -147,6 +147,48 @@ impl Outputter for QuietOutputter {
     }
 }
 
+pub struct VerboseOutputter;
+
+impl Default for VerboseOutputter {
+    fn default() -> VerboseOutputter {
+        VerboseOutputter {}
+    }
+}
+impl Outputter for VerboseOutputter {
+    type Response = DefaultResponse;
+
+    fn output_response(&mut self, response: &Self::Response) -> Result<(), Error> {
+        println!("{}", response);
+
+        let DefaultResponse(Response { body, .. }) = response;
+
+        let body = prettify_response_body(body.as_str());
+        println!("\n{}", body);
+
+        Ok(())
+    }
+
+    fn output_request(&mut self, request: &Request<Processed>) -> Result<(), Error> {
+        println!(
+            "{method} {target}",
+            method = request.method,
+            target = request.target
+        );
+        let headers: String = request
+            .headers
+            .iter()
+            .map(|header| format!("{}: {}\n", header.field_name, header.field_value))
+            .collect();
+        println!("{}", headers);
+        if let Some(b) = &request.body {
+            let body = prettify_response_body(&b.to_string());
+            println!("{}\n", body);
+        }
+        println!("");
+        Ok(())
+    }
+}
+
 pub struct DefaultResponse(Response);
 
 impl Display for Method {

@@ -3,9 +3,12 @@ use crate::controller::ErrorKind::{
 };
 use crate::model::*;
 use crate::parser::parse;
-use crate::response_handler::boa::{DefaultResponseHandler, QuietResponseHandler};
+use crate::response_handler::boa::{
+    DefaultResponseHandler, QuietResponseHandler, VerboseResponseHandler,
+};
 use crate::response_handler::{
     DefaultOutputter, DefaultResponse, Outputter, QuietOutputter, ResponseHandler, ScriptResponse,
+    VerboseOutputter,
 };
 use crate::script_engine::boa::BoaScriptEngine;
 use crate::script_engine::{Processable, ScriptEngine};
@@ -87,6 +90,41 @@ where
         env_file: &Path,
     ) -> Result<(), Error> {
         self.execute_impl(offset, all, env, script_file, snapshot_file, env_file)
+    }
+}
+
+pub struct VerboseController {
+    engine: BoaScriptEngine,
+    outputter: VerboseOutputter,
+    response_handler: VerboseResponseHandler,
+}
+
+impl Default for VerboseController {
+    fn default() -> Self {
+        VerboseController {
+            outputter: VerboseOutputter::default(),
+            engine: BoaScriptEngine::new(),
+            response_handler: VerboseResponseHandler {},
+        }
+    }
+}
+impl ControllerImpl for VerboseController {
+    type Engine = BoaScriptEngine;
+    type Outputter = VerboseOutputter;
+    type Response = DefaultResponse;
+    type ResponseHandler = VerboseResponseHandler;
+    fn components(
+        &mut self,
+    ) -> (
+        &mut Self::Engine,
+        &mut Self::Outputter,
+        &mut Self::ResponseHandler,
+    ) {
+        (
+            &mut self.engine,
+            &mut self.outputter,
+            &mut self.response_handler,
+        )
     }
 }
 

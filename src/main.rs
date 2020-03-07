@@ -306,7 +306,7 @@ mod parser;
 mod response_handler;
 mod script_engine;
 
-use crate::controller::{Controller, DefaultController, QuietController};
+use crate::controller::{Controller, DefaultController, QuietController, VerboseController};
 use clap::{App, Arg};
 use std::path::Path;
 
@@ -351,9 +351,11 @@ fn main() {
                 .help("Sequentially run all the requests in the file"),
         )
         .arg(
-            Arg::with_name("QUIET")
-                .short("q")
-                .help("Sequentially run all the requests in the file"),
+            Arg::with_name("OUTPUT")
+                .short("o")
+                .default_value("DEFAULT")
+                .validator(is_valid_output)
+                .help("Choose witch output generated, possible options DEFAULT, QUIET, VERBOSE"),
         )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
@@ -364,11 +366,17 @@ fn main() {
     let env = matches.value_of("ENVIRONMENT").unwrap().to_string();
     let env_file = matches.value_of("ENV_FILE").unwrap().to_string();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap().to_string();
-    let quiet: bool = matches.is_present("QUIET");
-    let mut controller: Box<dyn Controller> = if quiet {
-        Box::new(QuietController::default())
-    } else {
-        Box::new(DefaultController::default())
+    let output = matches
+        .value_of("OUTPUT")
+        .unwrap()
+        .to_string()
+        .to_lowercase();
+    let m_output: &str = &output;
+    let mut controller: Box<dyn Controller> = match m_output {
+        "quiet" => Box::new(QuietController::default()),
+        "default" => Box::new(DefaultController::default()),
+        "verbose" => Box::new(VerboseController::default()),
+        _ => unreachable!("impossible validation already handled this"),
     };
     match controller.execute(
         offset,
@@ -385,6 +393,17 @@ fn main() {
     }
 }
 
+fn is_valid_output(val: String) -> Result<(), String> {
+    let val = val.to_lowercase();
+    let met: &str = &val;
+    match met {
+        "quiet" | "verbose" | "default" => Ok(()),
+        _ => Err(format!(
+            "Invalid output format '{}', options are DEFAULT,QUIET,VERBOSE",
+            val
+        )),
+    }
+}
 fn is_valid_line_number(val: String) -> Result<(), String> {
     match val.parse::<i32>() {
         Ok(line_number) if line_number <= 0 => {
