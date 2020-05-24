@@ -2,7 +2,7 @@
 
 # dot-http
 
-![Verify](https://github.com/bayne/dot-http/workflows/Verify/badge.svg?branch=master)
+![Verify](https://github.com/bayne/dot-http/workflows/Verify/badge.svg?event=push&branch=master)
 [![gitmoji](https://img.shields.io/badge/gitmoji-%20%F0%9F%98%9C%20%F0%9F%98%8D-FFDD67.svg?style=flat-square)](https://github.com/carloscuesta/gitmoji)
 ![Powered by Rust](https://img.shields.io/badge/Powered%20By-Rust-orange?style=flat-square)
 
