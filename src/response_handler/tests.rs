@@ -3,13 +3,12 @@ use crate::response_handler::boa::DefaultResponseHandler;
 use crate::response_handler::{
     prettify_response_body, DefaultResponse, ResponseHandler, ScriptResponse,
 };
-use crate::script_engine::boa::BoaScriptEngine;
-use crate::script_engine::{Script, ScriptEngine};
+use crate::script_engine::{create_script_engine, Script};
 use serde_json::{Map, Value};
 
 #[test]
 fn test_headers_available_in_response() {
-    let mut engine = BoaScriptEngine::new();
+    let mut engine = create_script_engine();
     engine.initialize("{}", "dev").unwrap();
     let response_handler = DefaultResponseHandler;
 
@@ -26,7 +25,7 @@ fn test_headers_available_in_response() {
     };
 
     response_handler
-        .inject(&mut engine, script_response)
+        .inject(&mut *engine, script_response)
         .unwrap();
 
     let result = engine
@@ -78,6 +77,6 @@ fn test_headers_for_script_response() {
 #[test]
 #[should_panic]
 fn test_reset_before_initialize() {
-    let mut engine = BoaScriptEngine::new();
+    let mut engine = create_script_engine();
     let _ = engine.reset("{}");
 }

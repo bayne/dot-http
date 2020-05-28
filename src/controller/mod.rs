@@ -3,9 +3,11 @@ use crate::controller::ErrorKind::{
 };
 use crate::model::*;
 use crate::parser::parse;
+
 use crate::response_handler::boa::DefaultResponseHandler;
 use crate::response_handler::{DefaultOutputter, Outputter, ResponseHandler};
-use crate::script_engine::boa::BoaScriptEngine;
+use crate::script_engine::create_script_engine;
+
 use crate::script_engine::{Processable, ScriptEngine};
 use crate::{parser, script_engine};
 use serde::export::Formatter;
@@ -14,10 +16,6 @@ use std::path::{Path, PathBuf};
 
 #[cfg(test)]
 mod tests;
-
-fn create_script_engine() -> Box<dyn ScriptEngine> {
-    Box::new(BoaScriptEngine::new())
-}
 
 #[derive(Debug)]
 pub struct Error {

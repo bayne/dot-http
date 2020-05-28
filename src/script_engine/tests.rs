@@ -2,12 +2,11 @@ use crate::model::{
     InlineScript, Position, Processed, RequestScript, Selection, Unprocessed, Value,
 };
 use crate::parser::tests::test_file;
-use crate::script_engine::boa::BoaScriptEngine;
-use crate::script_engine::{Processable, Script, ScriptEngine};
+use crate::script_engine::{create_script_engine, Processable, Script, ScriptEngine};
 
 #[cfg(test)]
-fn setup(src: &'static str) -> BoaScriptEngine {
-    let mut engine = BoaScriptEngine::new();
+fn setup(src: &'static str) -> Box<dyn ScriptEngine> {
+    let mut engine = create_script_engine();
     engine.initialize(&"{}", &"dev").unwrap();
     engine.reset(src).unwrap();
     engine
@@ -23,7 +22,7 @@ fn test_process_file() {
     let request_scripts: Vec<RequestScript<Processed>> = file
         .request_scripts
         .iter()
-        .map(|script| script.process(&mut engine).unwrap())
+        .map(|script| script.process(&mut *engine).unwrap())
         .collect();
     assert_eq!(
         format!("{:#?}", request_scripts),
@@ -49,7 +48,7 @@ fn test_lex_error() {
             selection: Selection::none(),
         },
     };
-    let error = value.process(&mut engine).unwrap_err();
+    let error = value.process(&mut *engine).unwrap_err();
     assert_eq!(error.to_string(), ":10:3: Expecting Token .".to_string());
 }
 
@@ -71,13 +70,13 @@ fn test_parse_error() {
             selection: Selection::none(),
         },
     };
-    let error = value.process(&mut engine).unwrap_err();
+    let error = value.process(&mut *engine).unwrap_err();
     assert_eq!(error.to_string(), ":10:3: Error while parsing".to_string());
 }
 
 #[test]
 fn test_initialize_error() {
-    let mut engine = BoaScriptEngine::new();
+    let mut engine = create_script_engine();
     let error = engine.initialize(&"invalid", &"dev").unwrap_err();
 
     assert_eq!(

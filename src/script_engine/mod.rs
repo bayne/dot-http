@@ -7,6 +7,11 @@ pub mod boa;
 #[cfg(test)]
 mod tests;
 
+pub fn create_script_engine() -> Box<dyn ScriptEngine> {
+    use crate::script_engine::boa::BoaScriptEngine;
+    Box::new(BoaScriptEngine::new())
+}
+
 #[derive(Debug)]
 pub struct Error {
     selection: Selection,
