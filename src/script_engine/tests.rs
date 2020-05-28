@@ -2,16 +2,13 @@ use crate::model::{
     InlineScript, Position, Processed, RequestScript, Selection, Unprocessed, Value,
 };
 use crate::parser::tests::test_file;
-use crate::script_engine::{create_script_engine, Processable, Script, ScriptEngine};
+use crate::script_engine::{create_script_engine, ErrorKind, Processable, ScriptEngine};
 
 #[cfg(test)]
 fn setup(src: &'static str) -> Box<dyn ScriptEngine> {
     let mut engine = create_script_engine();
     engine.initialize(&"{}", &"dev").unwrap();
     engine.reset(src).unwrap();
-    engine
-        .execute_script(&Script::internal_script(src))
-        .unwrap();
     return engine;
 }
 
@@ -49,7 +46,13 @@ fn test_lex_error() {
         },
     };
     let error = value.process(&mut *engine).unwrap_err();
-    assert_eq!(error.to_string(), ":10:3: Expecting Token .".to_string());
+    assert_eq!(error.selection.to_string(), ":10:3".to_string());
+    let right_kind = if let ErrorKind::Execute(_) = error.kind {
+        true
+    } else {
+        false
+    };
+    assert!(right_kind);
 }
 
 #[test]
@@ -71,7 +74,13 @@ fn test_parse_error() {
         },
     };
     let error = value.process(&mut *engine).unwrap_err();
-    assert_eq!(error.to_string(), ":10:3: Error while parsing".to_string());
+    assert_eq!(error.selection.to_string(), ":10:3".to_string());
+    let right_kind = if let ErrorKind::Execute(_) = error.kind {
+        true
+    } else {
+        false
+    };
+    assert!(right_kind);
 }
 
 #[test]
@@ -79,8 +88,11 @@ fn test_initialize_error() {
     let mut engine = create_script_engine();
     let error = engine.initialize(&"invalid", &"dev").unwrap_err();
 
-    assert_eq!(
-        error.to_string(),
-        ":0:0:, Could not parse initialize object, _env_file".to_string()
-    );
+    assert_eq!(error.selection.to_string(), ":0:0".to_string());
+    let right_kind = if let ErrorKind::ParseInitializeObject(_) = error.kind {
+        true
+    } else {
+        false
+    };
+    assert!(right_kind);
 }

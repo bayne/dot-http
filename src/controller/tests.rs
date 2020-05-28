@@ -148,8 +148,7 @@ GET http://localhost:{{port}}/first HTTP/1.1
 GET http://localhost:{{port}}/second HTTP/1.1
 
 > {%
-    console.log(someGlobal);
-    var found = someGlobal !== undefined;
+    var found = (typeof someGlobal) !== "undefined";
 
     client.global.set('found', found);
 %}
