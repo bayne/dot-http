@@ -2,14 +2,43 @@ use crate::model::*;
 use crate::script_engine::ErrorKind::ParseInitializeObject;
 use std::fmt::{Debug, Formatter};
 
+#[cfg(feature = "boa")]
 pub mod boa;
+
+#[cfg(feature = "rusty_v8")]
+pub mod v8;
 
 #[cfg(test)]
 mod tests;
 
 pub fn create_script_engine() -> Box<dyn ScriptEngine> {
+    if let Some(engine) = create_script_boa_engine() {
+        engine
+    } else if let Some(engine) = create_script_v8_engine() {
+        engine
+    } else {
+        panic!("No Script Engine compiled in the binary");
+    }
+}
+
+#[cfg(feature = "boa")]
+fn create_script_boa_engine() -> Option<Box<dyn ScriptEngine>> {
     use crate::script_engine::boa::BoaScriptEngine;
-    Box::new(BoaScriptEngine::new())
+    Some(Box::new(BoaScriptEngine::new()))
+}
+#[cfg(not(feature = "boa"))]
+fn create_script_boa_engine() -> Option<Box<dyn ScriptEngine>> {
+    None
+}
+
+#[cfg(feature = "rusty_v8")]
+fn create_script_v8_engine() -> Option<Box<dyn ScriptEngine>> {
+    use crate::script_engine::v8::V8ScriptEngine;
+    Some(Box::new(V8ScriptEngine::new()))
+}
+#[cfg(not(feature = "rusty_v8"))]
+fn create_script_v8_engine() -> Option<Box<dyn ScriptEngine>> {
+    None
 }
 
 #[derive(Debug)]
@@ -20,7 +49,7 @@ pub struct Error {
 
 #[derive(Debug)]
 enum ErrorKind {
-    ParseInitializeObject(&'static str),
+    ParseInitializeObject(String),
     Execute(String),
 }
 
@@ -91,11 +120,6 @@ impl Processable for Header<Unprocessed> {
             selection: self.selection.clone(),
         })
     }
-}
-
-pub struct Expression<T> {
-    selection: Selection,
-    expr: T,
 }
 
 pub struct Script<'a> {

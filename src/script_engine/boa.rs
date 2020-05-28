@@ -1,6 +1,6 @@
 use crate::model::Selection;
 use crate::script_engine::ErrorKind::Execute;
-use crate::script_engine::{Error, ErrorKind, Expression, Script, ScriptEngine};
+use crate::script_engine::{Error, ErrorKind, Script, ScriptEngine};
 use boa::builtins::value::ValueData;
 use boa::exec::Executor;
 use boa::exec::Interpreter;
@@ -20,6 +20,11 @@ use std::convert::From;
 pub struct BoaScriptEngine {
     engine: Interpreter,
     initial_state: Option<InitialState>,
+}
+
+pub struct Expression<T> {
+    selection: Selection,
+    expr: T,
 }
 
 struct InitialState {
@@ -233,15 +238,19 @@ where
 {
     let Expression { expr: env_file, .. } = engine
         .parse(&Script::internal_script(script))
-        .map_err(|_| initialize_error(ErrorKind::ParseInitializeObject(var_name)))?;
+        .map_err(|_| initialize_error(ErrorKind::ParseInitializeObject(var_name.to_string())))?;
     let env_file = match &env_file {
         Expr { def: Block(expr) } => match &expr[..] {
             [Expr {
                 def: expr @ ObjectDecl(_),
             }] => Ok(expr),
-            _ => Err(initialize_error(ErrorKind::ParseInitializeObject(var_name))),
+            _ => Err(initialize_error(ErrorKind::ParseInitializeObject(
+                var_name.to_string(),
+            ))),
         },
-        _ => Err(initialize_error(ErrorKind::ParseInitializeObject(var_name))),
+        _ => Err(initialize_error(ErrorKind::ParseInitializeObject(
+            var_name.to_string(),
+        ))),
     }?;
 
     Ok(Expr {
