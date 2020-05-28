@@ -29,10 +29,9 @@ fn test_headers_available_in_response() {
         .inject(&mut engine, script_response)
         .unwrap();
 
-    let expr = engine
-        .parse(&Script::internal_script("response.headers['X-Auth-Token']"))
+    let result = engine
+        .execute_script(&Script::internal_script("response.headers['X-Auth-Token']"))
         .unwrap();
-    let result = engine.execute(&expr).unwrap();
 
     assert_eq!("SomeTokenValue", result);
 }

@@ -71,10 +71,8 @@ fn get_global(var: String) -> Expr {
     }
 }
 
-impl ScriptEngine for BoaScriptEngine {
-    type Expr = Expr;
-
-    fn process_script(&self, expression: Expression<Self::Expr>) -> Expression<Self::Expr> {
+impl BoaScriptEngine {
+    fn process_script(&self, expression: Expression<Expr>) -> Expression<Expr> {
         match &expression {
             Expression {
                 expr: Expr { def: Block(expr) },
@@ -92,16 +90,25 @@ impl ScriptEngine for BoaScriptEngine {
         }
     }
 
-    fn execute(&mut self, expression: &Expression<Self::Expr>) -> Result<String, Error> {
+    fn execute(&mut self, expression: &Expression<Expr>) -> Result<String, Error> {
         self.engine.execute(expression)
     }
 
-    fn parse(&self, script: &Script) -> Result<Expression<Self::Expr>, Error> {
+    fn parse(&self, script: &Script) -> Result<Expression<Expr>, Error> {
         self.engine.parse(script)
     }
+}
 
-    fn empty() -> &'static str {
-        "{}"
+impl ScriptEngine for BoaScriptEngine {
+    fn execute_script(&mut self, script: &Script) -> Result<String, Error> {
+        let expr = self.parse(&script)?;
+
+        let expr = self.process_script(expr);
+        self.execute(&expr)
+    }
+
+    fn empty(&self) -> String {
+        String::from("{}")
     }
 
     fn initialize(&mut self, env_script: &str, env: &str) -> Result<(), Error> {

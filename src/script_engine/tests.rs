@@ -10,8 +10,9 @@ fn setup(src: &'static str) -> BoaScriptEngine {
     let mut engine = BoaScriptEngine::new();
     engine.initialize(&"{}", &"dev").unwrap();
     engine.reset(src).unwrap();
-    let expr = engine.parse(&Script::internal_script(src)).unwrap();
-    engine.execute(&expr).unwrap();
+    engine
+        .execute_script(&Script::internal_script(src))
+        .unwrap();
     return engine;
 }
 
