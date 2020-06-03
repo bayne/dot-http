@@ -1,5 +1,8 @@
 use crate::script_engine::{Error, ErrorKind, Script, ScriptEngine};
 use rusty_v8::{
+    inspector::{
+        StringView, V8Inspector, V8InspectorClientBase, V8InspectorClientImpl, V8StackTrace,
+    },
     Context, ContextScope, Exception, Global, HandleScope, Isolate, OwnedIsolate,
     Script as V8Script, String as V8String, TryCatch, V8,
 };
@@ -74,13 +77,20 @@ impl Default for V8ScriptEngine {
 impl ScriptEngine for V8ScriptEngine {
     fn execute_script(&mut self, script: &Script) -> Result<String, Error> {
         let isolate = &mut self.isolate;
-
+        let mut logger = ConsoleLogger::new();
+        let mut inspector = V8Inspector::create(isolate, &mut logger);
         let mut handle_scope = HandleScope::new(isolate);
-        let scope = handle_scope.enter();
+        let isolate_scope = handle_scope.enter();
 
-        let context = self.global.get(scope).unwrap();
-        let mut context_scope = ContextScope::new(scope, context);
+        let context = self.global.get(isolate_scope).unwrap();
+
+        let name = b"";
+        let name_view = StringView::from(&name[..]);
+        inspector.context_created(context, 1, name_view);
+
+        let mut context_scope = ContextScope::new(isolate_scope, context);
         let scope = context_scope.enter();
+
         let mut try_catch = TryCatch::new(scope);
         let tc = try_catch.enter();
         let source = V8String::new(scope, script.src).unwrap();
@@ -151,5 +161,39 @@ impl ScriptEngine for V8ScriptEngine {
         let script = "JSON.stringify(_snapshot)";
         let out = self.execute_script(&Script::internal_script(script))?;
         Ok(out)
+    }
+}
+
+struct ConsoleLogger {
+    base: V8InspectorClientBase,
+}
+impl ConsoleLogger {
+    fn new() -> Self {
+        Self {
+            base: V8InspectorClientBase::new::<Self>(),
+        }
+    }
+}
+
+impl V8InspectorClientImpl for ConsoleLogger {
+    fn base(&self) -> &V8InspectorClientBase {
+        &self.base
+    }
+
+    fn base_mut(&mut self) -> &mut V8InspectorClientBase {
+        &mut self.base
+    }
+
+    fn console_api_message(
+        &mut self,
+        _context_group_id: i32,
+        _level: i32,
+        message: &StringView,
+        _url: &StringView,
+        _line_number: u32,
+        _column_number: u32,
+        _stack_trace: &mut V8StackTrace,
+    ) {
+        println!("{}", message.to_string());
     }
 }
