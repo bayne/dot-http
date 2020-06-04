@@ -4,7 +4,7 @@ use crate::controller::ErrorKind::{
 use crate::model::*;
 use crate::parser::parse;
 
-use crate::response_handler::boa::DefaultResponseHandler;
+use crate::response_handler::DefaultResponseHandler;
 use crate::response_handler::{DefaultOutputter, Outputter, ResponseHandler};
 use crate::script_engine::create_script_engine;
 

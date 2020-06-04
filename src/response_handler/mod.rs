@@ -8,8 +8,6 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::iter::FromIterator;
 
-pub mod boa;
-
 #[cfg(test)]
 mod tests;
 
@@ -204,4 +202,11 @@ impl From<DefaultResponse> for ScriptResponse {
             status: response.status_code,
         }
     }
+}
+
+pub struct DefaultResponseHandler;
+
+impl ResponseHandler for DefaultResponseHandler {
+    type Outputter = DefaultOutputter;
+    type Response = DefaultResponse;
 }

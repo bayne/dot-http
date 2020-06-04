@@ -1,5 +1,5 @@
 use crate::model::{Response, Version};
-use crate::response_handler::boa::DefaultResponseHandler;
+use crate::response_handler::DefaultResponseHandler;
 use crate::response_handler::{
     prettify_response_body, DefaultResponse, ResponseHandler, ScriptResponse,
 };
