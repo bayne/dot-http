@@ -3,6 +3,7 @@ use rusty_v8::{
     inspector::{
         StringView, V8Inspector, V8InspectorClientBase, V8InspectorClientImpl, V8StackTrace,
     },
+    scope::Entered,
     Context, ContextScope, Exception, Global, HandleScope, Isolate, OwnedIsolate,
     Script as V8Script, String as V8String, TryCatch, V8,
 };
@@ -74,46 +75,49 @@ impl Default for V8ScriptEngine {
     }
 }
 
+fn catch(
+    script: &Script,
+    tc: &mut TryCatch,
+    scope: &mut Entered<ContextScope, Entered<HandleScope, OwnedIsolate>>,
+) -> Error {
+    let exception = tc.exception().unwrap();
+    let msg = Exception::create_message(scope, exception);
+    Error {
+        selection: script.selection.clone(),
+        kind: ErrorKind::Execute(msg.get(scope).to_rust_string_lossy(scope)),
+    }
+}
+
 impl ScriptEngine for V8ScriptEngine {
     fn execute_script(&mut self, script: &Script) -> Result<String, Error> {
         let isolate = &mut self.isolate;
         let mut logger = ConsoleLogger::new();
         let mut inspector = V8Inspector::create(isolate, &mut logger);
-        let mut handle_scope = HandleScope::new(isolate);
-        let isolate_scope = handle_scope.enter();
+        let mut scope = HandleScope::new(isolate);
+        let scope = scope.enter();
 
-        let context = self.global.get(isolate_scope).unwrap();
+        let context = self.global.get(scope).unwrap();
+
+        let mut scope = ContextScope::new(scope, context);
+        let scope = scope.enter();
 
         let name = b"";
         let name_view = StringView::from(&name[..]);
         inspector.context_created(context, 1, name_view);
 
-        let mut context_scope = ContextScope::new(isolate_scope, context);
-        let scope = context_scope.enter();
-
         let mut try_catch = TryCatch::new(scope);
-        let tc = try_catch.enter();
+        let try_catch = try_catch.enter();
         let source = V8String::new(scope, script.src).unwrap();
-        if let Some(mut compiled) = V8Script::compile(scope, context, source, None) {
-            if let Some(result) = compiled.run(scope, context) {
-                let result = result.to_string(scope).unwrap();
-                Ok(result.to_rust_string_lossy(scope))
-            } else {
-                let exception = tc.exception().unwrap();
-                let msg = Exception::create_message(scope, exception);
-                Err(Error {
-                    selection: script.selection.clone(),
-                    kind: ErrorKind::Execute(msg.get(scope).to_rust_string_lossy(scope)),
-                })
-            }
-        } else {
-            let exception = tc.exception().unwrap();
-            let msg = Exception::create_message(scope, exception);
-            Err(Error {
-                selection: script.selection.clone(),
-                kind: ErrorKind::Execute(msg.get(scope).to_rust_string_lossy(scope)),
-            })
-        }
+
+        let mut compiled = V8Script::compile(scope, context, source, None)
+            .ok_or_else(|| catch(script, try_catch, scope))?;
+        let result = compiled
+            .run(scope, context)
+            .ok_or_else(|| catch(script, try_catch, scope))?;
+
+        let result = result.to_string(scope).unwrap();
+
+        Ok(result.to_rust_string_lossy(scope))
     }
 
     fn empty(&self) -> String {
