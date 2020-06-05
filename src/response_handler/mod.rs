@@ -8,8 +8,6 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 use std::iter::FromIterator;
 
-pub mod boa;
-
 #[cfg(test)]
 mod tests;
 
@@ -35,13 +33,12 @@ impl From<script_engine::Error> for Error {
 }
 
 pub trait ResponseHandler {
-    type Engine: ScriptEngine;
     type Outputter: Outputter<Response = Self::Response>;
     type Response: Into<ScriptResponse>;
 
     fn handle(
         &self,
-        engine: &mut Self::Engine,
+        engine: &mut dyn ScriptEngine,
         outputter: &mut Self::Outputter,
         request_script: &RequestScript<Processed>,
         response: Self::Response,
@@ -50,26 +47,24 @@ pub trait ResponseHandler {
         if let Some(Handler { script, selection }) = &request_script.handler {
             let script_response: ScriptResponse = response.into();
             self.inject(engine, script_response)?;
-            let expr = engine.parse(&Script {
+            engine.execute_script(&Script {
                 selection: selection.clone(),
                 src: script,
             })?;
-            engine.execute(&expr)?;
         }
         Ok(())
     }
 
     fn inject(
         &self,
-        engine: &mut Self::Engine,
+        engine: &mut dyn ScriptEngine,
         script_response: ScriptResponse,
     ) -> Result<(), Error> {
         let script = format!(
             "var response = {};",
             serde_json::to_string(&script_response).unwrap()
         );
-        let expr = engine.parse(&Script::internal_script(&script))?;
-        engine.execute(&expr)?;
+        engine.execute_script(&Script::internal_script(&script))?;
         if let Ok(serde_json::Value::Object(response_body)) =
             serde_json::from_str(script_response.body.as_str())
         {
@@ -77,8 +72,9 @@ pub trait ResponseHandler {
                 "response.body = {};",
                 serde_json::to_string(&response_body).unwrap()
             );
-            let expr = engine.parse(&Script::internal_script(&script)).unwrap();
-            engine.execute(&expr).unwrap();
+            engine
+                .execute_script(&Script::internal_script(&script))
+                .unwrap();
         }
         Ok(())
     }
@@ -206,4 +202,11 @@ impl From<DefaultResponse> for ScriptResponse {
             status: response.status_code,
         }
     }
+}
+
+pub struct DefaultResponseHandler;
+
+impl ResponseHandler for DefaultResponseHandler {
+    type Outputter = DefaultOutputter;
+    type Response = DefaultResponse;
 }

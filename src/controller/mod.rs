@@ -3,9 +3,11 @@ use crate::controller::ErrorKind::{
 };
 use crate::model::*;
 use crate::parser::parse;
-use crate::response_handler::boa::DefaultResponseHandler;
+
+use crate::response_handler::DefaultResponseHandler;
 use crate::response_handler::{DefaultOutputter, Outputter, ResponseHandler};
-use crate::script_engine::boa::BoaScriptEngine;
+use crate::script_engine::create_script_engine;
+
 use crate::script_engine::{Processable, ScriptEngine};
 use crate::{parser, script_engine};
 use serde::export::Formatter;
@@ -57,7 +59,7 @@ impl std::fmt::Display for Error {
 }
 
 pub struct Controller {
-    engine: BoaScriptEngine,
+    engine: Box<dyn ScriptEngine>,
     outputter: DefaultOutputter,
     response_handler: DefaultResponseHandler,
 }
@@ -67,12 +69,11 @@ impl Default for Controller {
         let outputter: DefaultOutputter = DefaultOutputter::new();
         Controller {
             outputter,
-            engine: BoaScriptEngine::new(),
+            engine: create_script_engine(),
             response_handler: DefaultResponseHandler {},
         }
     }
 }
-
 impl Controller {
     pub fn execute(
         &mut self,
@@ -90,10 +91,12 @@ impl Controller {
             kind: ParseRequestScript(err),
         })?;
 
+        let engine = &mut *self.engine;
+        let outputter = &mut self.outputter;
         let env_file = match read_to_string(env_file) {
             Ok(script) => Ok(script),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                let env = String::from(BoaScriptEngine::empty());
+                let env = engine.empty();
                 std::fs::write(env_file, &env).unwrap();
                 Ok(env)
             }
@@ -104,16 +107,11 @@ impl Controller {
 
         let mut snapshot = match read_to_string(snapshot_file) {
             Ok(script) => Ok(script),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                Ok(String::from(BoaScriptEngine::empty()))
-            }
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(engine.empty()),
             Err(e) => Err(Error {
                 kind: ErrorKind::ReadSnapshotFile(snapshot_file.to_path_buf(), e),
             }),
         }?;
-
-        let engine = &mut self.engine;
-        let outputter = &mut self.outputter;
 
         engine.initialize(&env_file, &env).unwrap();
 
@@ -121,7 +119,6 @@ impl Controller {
 
         for request_script in request_scripts {
             engine.reset(&snapshot).unwrap();
-
             let request_script = request_script.process(engine).map_err(|err| Error {
                 kind: ScriptEngineError(script_file.to_path_buf(), err),
             })?;

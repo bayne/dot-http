@@ -2,10 +2,44 @@ use crate::model::*;
 use crate::script_engine::ErrorKind::ParseInitializeObject;
 use std::fmt::{Debug, Formatter};
 
+#[cfg(feature = "boa")]
 pub mod boa;
+
+#[cfg(feature = "rusty_v8")]
+pub mod v8;
 
 #[cfg(test)]
 mod tests;
+
+pub fn create_script_engine() -> Box<dyn ScriptEngine> {
+    if let Some(engine) = create_script_boa_engine() {
+        engine
+    } else if let Some(engine) = create_script_v8_engine() {
+        engine
+    } else {
+        panic!("No Script Engine compiled in the binary");
+    }
+}
+
+#[cfg(feature = "boa")]
+fn create_script_boa_engine() -> Option<Box<dyn ScriptEngine>> {
+    use crate::script_engine::boa::BoaScriptEngine;
+    Some(Box::new(BoaScriptEngine::new()))
+}
+#[cfg(not(feature = "boa"))]
+fn create_script_boa_engine() -> Option<Box<dyn ScriptEngine>> {
+    None
+}
+
+#[cfg(feature = "rusty_v8")]
+fn create_script_v8_engine() -> Option<Box<dyn ScriptEngine>> {
+    use crate::script_engine::v8::V8ScriptEngine;
+    Some(Box::new(V8ScriptEngine::new()))
+}
+#[cfg(not(feature = "rusty_v8"))]
+fn create_script_v8_engine() -> Option<Box<dyn ScriptEngine>> {
+    None
+}
 
 #[derive(Debug)]
 pub struct Error {
@@ -15,7 +49,7 @@ pub struct Error {
 
 #[derive(Debug)]
 enum ErrorKind {
-    ParseInitializeObject(&'static str),
+    ParseInitializeObject(String),
     Execute(String),
 }
 
@@ -38,14 +72,14 @@ impl std::fmt::Display for Error {
     }
 }
 
-pub trait Processable<T: ScriptEngine> {
+pub trait Processable {
     type Output;
-    fn process(&self, _engine: &mut T) -> Result<Self::Output, Error>;
+    fn process(&self, _engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error>;
 }
 
-impl<T: ScriptEngine> Processable<T> for RequestScript<Unprocessed> {
+impl Processable for RequestScript<Unprocessed> {
     type Output = RequestScript<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, Error> {
+    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
         Ok(RequestScript {
             request: self.request.process(engine)?,
             handler: self.handler.clone(),
@@ -54,9 +88,9 @@ impl<T: ScriptEngine> Processable<T> for RequestScript<Unprocessed> {
     }
 }
 
-impl<T: ScriptEngine> Processable<T> for Request<Unprocessed> {
+impl Processable for Request<Unprocessed> {
     type Output = Request<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, Error> {
+    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
         let mut headers = vec![];
         for header in &self.headers {
             headers.push(header.process(engine)?);
@@ -77,20 +111,15 @@ impl<T: ScriptEngine> Processable<T> for Request<Unprocessed> {
     }
 }
 
-impl<T: ScriptEngine> Processable<T> for Header<Unprocessed> {
+impl Processable for Header<Unprocessed> {
     type Output = Header<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, Error> {
+    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
         Ok(Header {
             field_name: self.field_name.clone(),
             field_value: self.field_value.process(engine)?,
             selection: self.selection.clone(),
         })
     }
-}
-
-pub struct Expression<T> {
-    selection: Selection,
-    expr: T,
 }
 
 pub struct Script<'a> {
@@ -108,12 +137,9 @@ impl<'a> Script<'a> {
 }
 
 pub trait ScriptEngine {
-    type Expr;
+    fn execute_script(&mut self, script: &Script) -> Result<String, Error>;
 
-    fn process_script(&self, expression: Expression<Self::Expr>) -> Expression<Self::Expr>;
-    fn execute(&mut self, expression: &Expression<Self::Expr>) -> Result<String, Error>;
-    fn parse(&self, script: &Script) -> Result<Expression<Self::Expr>, Error>;
-    fn empty() -> &'static str;
+    fn empty(&self) -> String;
 
     fn initialize(&mut self, env_script: &str, env: &str) -> Result<(), Error>;
     fn reset(&mut self, snapshot_script: &str) -> Result<(), Error>;
@@ -121,9 +147,9 @@ pub trait ScriptEngine {
     fn snapshot(&mut self) -> Result<String, Error>;
 }
 
-impl<E, T: ScriptEngine<Expr = E>> Processable<T> for Value<Unprocessed> {
+impl Processable for Value<Unprocessed> {
     type Output = Value<Processed>;
-    fn process(&self, engine: &mut T) -> Result<Self::Output, Error> {
+    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
         match self {
             Value {
                 state:
@@ -133,23 +159,13 @@ impl<E, T: ScriptEngine<Expr = E>> Processable<T> for Value<Unprocessed> {
                         selection: _selection,
                     },
             } => {
-                let evaluated = inline_scripts
-                    .iter()
-                    .map(|inline_script| {
-                        Ok((
-                            &inline_script.placeholder,
-                            engine.parse(&Script {
-                                selection: inline_script.selection.clone(),
-                                src: &inline_script.script,
-                            })?,
-                        ))
-                    })
-                    .collect::<Result<Vec<(&String, Expression<E>)>, Error>>()?;
-
                 let mut interpolated = value.clone();
-                for (placeholder, expr) in evaluated {
-                    let expr = engine.process_script(expr);
-                    let result = engine.execute(&expr)?;
+                for inline_script in inline_scripts {
+                    let placeholder = inline_script.placeholder.clone();
+                    let result = engine.execute_script(&Script {
+                        selection: inline_script.selection.clone(),
+                        src: &inline_script.script,
+                    })?;
                     interpolated = interpolated.replacen(placeholder.as_str(), result.as_str(), 1);
                 }
 

@@ -20,7 +20,8 @@ travis-ci = { repository = "bayne/dot-http" }
 appveyor = { repository = "bayne/dot-http", branch = "master", service = "github" }
 
 [dependencies]
-Boa = "0.5.1"
+Boa = {version ="0.5.1", optional = true}
+rusty_v8 = {version = "0.4", optional = true}
 reqwest = { version = "0.10.0-alpha.2", features = ["blocking"] }
 tokio = { version = "0.2", features = ["sync"] }
 pest = "2.1.2"
@@ -33,3 +34,9 @@ serde = { version = "1.0", features = ["derive"] }
 [dev-dependencies]
 http-test-server = "1.0.0"
 tempfile = "3.1.0"
+
+[features]
+default = ["boa"]
+boa = ["Boa"]
+v8 = ["rusty_v8"]
+
