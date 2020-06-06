@@ -181,11 +181,9 @@ impl ScriptEngine for BoaScriptEngine {
 impl InternalBoaScriptEngine for Interpreter {
     fn execute(&mut self, expression: &Expression<Expr>) -> Result<String, Error> {
         self.run(&expression.expr)
-            .map_err(|_err| Error {
+            .map_err(|err| Error {
                 selection: expression.selection.clone(),
-                kind: Execute(String::from(
-                    "Unknown error when trying to execute javascript",
-                )),
+                kind: Execute(err.to_string()),
             })
             .map(|value| value.to_string())
     }
