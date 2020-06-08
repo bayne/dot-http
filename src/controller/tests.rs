@@ -31,14 +31,13 @@ fn test() {
     .unwrap();
 
     let script_file = script_file.into_temp_path();
-    let mut controller = Controller::default();
 
     let offset = 1;
     let env = String::from("dev");
 
-    controller
-        .execute(offset, false, env, &script_file, &snapshot_file, &env_file)
-        .unwrap();
+    let mut controller = Controller::new(env, &snapshot_file, &env_file).unwrap();
+
+    controller.execute(&script_file, offset, false).unwrap();
 }
 
 #[test]
@@ -206,13 +205,11 @@ fn multi_line_setup(offset: usize, all: bool, scripts: &str) -> Receiver<Request
     writeln!(script_file, "{}", scripts,).unwrap();
 
     let script_file = script_file.into_temp_path();
-    let mut controller = Controller::default();
-
     let env = String::from("dev");
 
-    controller
-        .execute(offset, all, env, &script_file, &snapshot_file, &env_file)
-        .unwrap();
+    let mut controller = Controller::new(env, &snapshot_file, &env_file).unwrap();
+
+    controller.execute(&script_file, offset, all).unwrap();
 
     requests
 }

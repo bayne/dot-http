@@ -8,8 +8,7 @@ use serde_json::{Map, Value};
 
 #[test]
 fn test_headers_available_in_response() {
-    let mut engine = create_script_engine();
-    engine.initialize("{}", "dev").unwrap();
+    let mut engine = create_script_engine("{}", "dev", "{}");
     let response_handler = DefaultResponseHandler;
 
     let mut headers = Map::new();
@@ -41,14 +40,15 @@ fn test_output_is_prettified() {
 
     assert_eq!("simple", pretty_body);
 
-    let pretty_body = prettify_response_body("{\"stuff\": \"andThings\"}");
+    let pretty_body = prettify_response_body(r#"{"stuff": "andThings"}"#);
 
     assert_eq!(
-        "\
+        r#"
 {
-  \"stuff\": \"andThings\"
-}\
-",
+  "stuff": "andThings"
+}
+        "#
+        .trim(),
         pretty_body
     );
 }
@@ -72,11 +72,4 @@ fn test_headers_for_script_response() {
         script_response.headers.get("Content-Type"),
         Some(&Value::String(String::from("application/json")))
     )
-}
-
-#[test]
-#[should_panic]
-fn test_reset_before_initialize() {
-    let mut engine = create_script_engine();
-    let _ = engine.reset("{}");
 }

@@ -360,15 +360,9 @@ fn main() {
     let env_file = matches.value_of("ENV_FILE").unwrap().to_string();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap().to_string();
 
-    let mut controller = Controller::default();
-    match controller.execute(
-        offset,
-        all,
-        env,
-        Path::new(&script_file),
-        Path::new(&snapshot_file),
-        Path::new(&env_file),
-    ) {
+    let mut controller =
+        Controller::new(env, Path::new(&snapshot_file), Path::new(&env_file)).unwrap();
+    match controller.execute(Path::new(&script_file), offset, all) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("{}", e);

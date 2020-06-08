@@ -1,14 +1,10 @@
-use crate::model::{
-    InlineScript, Position, Processed, RequestScript, Selection, Unprocessed, Value,
-};
+use crate::model::{Processed, RequestScript};
 use crate::parser::tests::test_file;
-use crate::script_engine::{create_script_engine, ErrorKind, Processable, ScriptEngine};
+use crate::script_engine::{create_script_engine, Processable, Script, ScriptEngine};
 
 #[cfg(test)]
 fn setup(src: &'static str) -> Box<dyn ScriptEngine> {
-    let mut engine = create_script_engine();
-    engine.initialize(&"{}", &"dev").unwrap();
-    engine.reset(src).unwrap();
+    let engine = create_script_engine("{}", "dev", src);
     return engine;
 }
 
@@ -28,71 +24,80 @@ fn test_process_file() {
 }
 
 #[test]
-fn test_lex_error() {
+fn test_syntax_error() {
     let mut engine = setup("{}");
-    let value = Value {
-        state: Unprocessed::WithInline {
-            value: "{{..test}}".to_string(),
-            inline_scripts: vec![InlineScript {
-                script: "..test".to_string(),
-                placeholder: "{{..test}}".to_string(),
-                selection: Selection {
-                    filename: Default::default(),
-                    start: Position { line: 10, col: 3 },
-                    end: Position { line: 11, col: 4 },
-                },
-            }],
-            selection: Selection::none(),
-        },
-    };
-    let error = value.process(&mut *engine).unwrap_err();
-    assert_eq!(error.selection.to_string(), ":10:3".to_string());
-    let right_kind = if let ErrorKind::Execute(_) = error.kind {
-        true
-    } else {
-        false
-    };
-    assert!(right_kind);
+
+    let result = engine.execute_script(&Script::internal_script("..test"));
+
+    assert!(
+        result.is_err(),
+        "Should've been an error, but instead got:\n {:#?}",
+        result
+    );
+    if let Err(error) = result {
+        assert!(
+            error.to_string().contains("SyntaxError"),
+            "Should've been a syntax error, but instead got:\n {:#?}",
+            error
+        );
+    }
 }
 
 #[test]
 fn test_parse_error() {
     let mut engine = setup("{}");
-    let value = Value {
-        state: Unprocessed::WithInline {
-            value: "{{.test}}".to_string(),
-            inline_scripts: vec![InlineScript {
-                script: ".test".to_string(),
-                placeholder: "{{.test}}".to_string(),
-                selection: Selection {
-                    filename: Default::default(),
-                    start: Position { line: 10, col: 3 },
-                    end: Position { line: 11, col: 4 },
-                },
-            }],
-            selection: Selection::none(),
-        },
-    };
-    let error = value.process(&mut *engine).unwrap_err();
-    assert_eq!(error.selection.to_string(), ":10:3".to_string());
-    let right_kind = if let ErrorKind::Execute(_) = error.kind {
-        true
-    } else {
-        false
-    };
-    assert!(right_kind);
+
+    let result = engine.execute_script(&Script::internal_script(".test"));
+
+    assert!(
+        result.is_err(),
+        "Should've been an error, but instead got:\n {:#?}",
+        result
+    );
+    if let Err(error) = result {
+        assert!(
+            error.to_string().contains("ParsingError"),
+            "Should've been a parsing error, but instead got:\n {:#?}",
+            error
+        );
+    }
 }
 
 #[test]
+#[should_panic]
 fn test_initialize_error() {
-    let mut engine = create_script_engine();
-    let error = engine.initialize(&"invalid", &"dev").unwrap_err();
+    let _engine = create_script_engine("invalid", "dev", "{}");
+}
 
-    assert_eq!(error.selection.to_string(), ":0:0".to_string());
-    let right_kind = if let ErrorKind::ParseInitializeObject(_) = error.kind {
-        true
-    } else {
-        false
-    };
-    assert!(right_kind);
+#[test]
+fn test_initialize() {
+    let mut engine = create_script_engine(r#"{"dev": {"a": 1}}"#, "dev", "{}");
+
+    let result = engine.execute_script(&Script::internal_script("a"));
+
+    assert!(result.is_ok());
+
+    if let Ok(result_value) = result {
+        assert!(result_value == "1");
+    }
+}
+
+#[test]
+fn test_reset() {
+    let mut engine = create_script_engine(r#"{"dev": {"a": 1}}"#, "dev", "{}");
+    engine
+        .execute_script(&Script::internal_script(
+            r#"client.global.set("test", "test_value")"#,
+        ))
+        .unwrap();
+
+    engine.reset().unwrap();
+
+    let result = engine.execute_script(&Script::internal_script("test"));
+
+    assert!(result.is_ok());
+
+    if let Ok(result_value) = result {
+        assert_eq!(result_value, "test_value");
+    }
 }

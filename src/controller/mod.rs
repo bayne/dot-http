@@ -1,16 +1,14 @@
 use crate::controller::ErrorKind::{
     ParseRequestScript, ReadEnvFile, ReadRequestScriptFile, ReadSnapshotFile, ScriptEngineError,
 };
-use crate::model::*;
+use crate::model::{File, RequestScript, Unprocessed};
 use crate::parser::parse;
-
-use crate::response_handler::DefaultResponseHandler;
-use crate::response_handler::{DefaultOutputter, Outputter, ResponseHandler};
-use crate::script_engine::create_script_engine;
-
-use crate::script_engine::{Processable, ScriptEngine};
+use crate::response_handler::{
+    DefaultOutputter, DefaultResponseHandler, Outputter, ResponseHandler,
+};
+use crate::script_engine::{create_script_engine, Processable, ScriptEngine};
 use crate::{parser, script_engine};
-use serde::export::Formatter;
+use std::fmt::Formatter;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
@@ -60,30 +58,43 @@ impl std::fmt::Display for Error {
 
 pub struct Controller {
     engine: Box<dyn ScriptEngine>,
+    snapshot_file: PathBuf,
     outputter: DefaultOutputter,
     response_handler: DefaultResponseHandler,
 }
-
-impl Default for Controller {
-    fn default() -> Self {
-        let outputter: DefaultOutputter = DefaultOutputter::new();
-        Controller {
-            outputter,
-            engine: create_script_engine(),
-            response_handler: DefaultResponseHandler {},
-        }
-    }
-}
 impl Controller {
-    pub fn execute(
-        &mut self,
-        offset: usize,
-        all: bool,
-        env: String,
-        script_file: &Path,
-        snapshot_file: &Path,
-        env_file: &Path,
-    ) -> Result<(), Error> {
+    pub fn new(env: String, snapshot_file: &Path, env_file: &Path) -> Result<Controller, Error> {
+        let env_file = match read_to_string(env_file) {
+            Ok(script) => Ok(script),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                std::fs::write(env_file, "{}").unwrap();
+                Ok("{}".to_string())
+            }
+            Err(e) => Err(Error {
+                kind: ErrorKind::ReadEnvFile(env_file.to_path_buf(), e),
+            }),
+        }?;
+
+        let snapshot = match read_to_string(snapshot_file) {
+            Ok(script) => Ok(script),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok("{}".to_string()),
+            Err(e) => Err(Error {
+                kind: ErrorKind::ReadSnapshotFile(snapshot_file.to_path_buf(), e),
+            }),
+        }?;
+
+        let engine = create_script_engine(&env_file, &env, &snapshot);
+
+        let outputter: DefaultOutputter = DefaultOutputter::new();
+        Ok(Controller {
+            outputter,
+            snapshot_file: PathBuf::from(snapshot_file),
+            engine,
+            response_handler: DefaultResponseHandler {},
+        })
+    }
+
+    pub fn execute(&mut self, script_file: &Path, offset: usize, all: bool) -> Result<(), Error> {
         let file = read_to_string(&script_file).map_err(|err| Error {
             kind: ErrorKind::ReadRequestScriptFile(script_file.to_path_buf(), err),
         })?;
@@ -91,34 +102,12 @@ impl Controller {
             kind: ParseRequestScript(err),
         })?;
 
-        let engine = &mut *self.engine;
-        let outputter = &mut self.outputter;
-        let env_file = match read_to_string(env_file) {
-            Ok(script) => Ok(script),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                let env = engine.empty();
-                std::fs::write(env_file, &env).unwrap();
-                Ok(env)
-            }
-            Err(e) => Err(Error {
-                kind: ErrorKind::ReadEnvFile(env_file.to_path_buf(), e),
-            }),
-        }?;
-
-        let mut snapshot = match read_to_string(snapshot_file) {
-            Ok(script) => Ok(script),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(engine.empty()),
-            Err(e) => Err(Error {
-                kind: ErrorKind::ReadSnapshotFile(snapshot_file.to_path_buf(), e),
-            }),
-        }?;
-
-        engine.initialize(&env_file, &env).unwrap();
-
         let request_scripts = file.request_scripts(offset, all);
 
+        let engine = &mut *self.engine;
+        let outputter = &mut self.outputter;
+
         for request_script in request_scripts {
-            engine.reset(&snapshot).unwrap();
             let request_script = request_script.process(engine).map_err(|err| Error {
                 kind: ScriptEngineError(script_file.to_path_buf(), err),
             })?;
@@ -130,10 +119,11 @@ impl Controller {
             self.response_handler
                 .handle(engine, outputter, &request_script, response.into())
                 .unwrap();
-            snapshot = engine.snapshot().unwrap();
+            engine.reset().unwrap();
         }
+        let snapshot = engine.snapshot().unwrap();
 
-        std::fs::write(snapshot_file, snapshot).unwrap();
+        std::fs::write(self.snapshot_file.as_path(), snapshot).unwrap();
 
         Ok(())
     }

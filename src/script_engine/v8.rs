@@ -1,3 +1,4 @@
+use crate::model::Selection;
 use crate::script_engine::{Error, ErrorKind, Script, ScriptEngine};
 use rusty_v8::{
     inspector::{
@@ -14,16 +15,22 @@ static V8_INIT: Once = Once::new();
 pub struct V8ScriptEngine {
     isolate: OwnedIsolate,
     global: Global<Context>,
-    init: Option<InitialState>,
-}
-#[derive(Clone)]
-struct InitialState {
     env_file: String,
     env: String,
 }
 
+impl From<serde_json::error::Error> for Error {
+    fn from(_: serde_json::error::Error) -> Self {
+        unimplemented!()
+    }
+}
+
 impl V8ScriptEngine {
-    pub fn new() -> V8ScriptEngine {
+    pub fn new(
+        env_script: &str,
+        env: &str,
+        snapshot_script: &str,
+    ) -> Result<V8ScriptEngine, Error> {
         V8_INIT.call_once(|| {
             let platform = rusty_v8::new_default_platform().unwrap();
             V8::initialize_platform(platform);
@@ -36,42 +43,36 @@ impl V8ScriptEngine {
         let scope = handle_scope.enter();
         let context = Context::new(scope);
         global.set(scope, context);
-        V8ScriptEngine {
+
+        let mut engine = V8ScriptEngine {
             isolate,
             global,
-            init: None,
-        }
-    }
-    fn init(&mut self) -> Result<(), Error> {
-        if let Some(init) = self.init.clone() {
-            let env_script = format!("var _env_file = {} ", &init.env_file);
-            self.execute_script(&Script::internal_script(&env_script))?;
+            env_file: env_script.to_string(),
+            env: env.to_string(),
+        };
 
-            let env = format!(
+        let environment: serde_json::Value = serde_json::from_str(env_script)?;
+        if let Some(environment) = environment.get(env) {
+            declare(&mut engine, environment)?;
+            let script = format!(
                 r#"
-                            (function() {{
-                            let config = _env_file["{}"];
-                            for (prop in config) {{
-                                this[prop] = config[prop];
-                            }}
-                            }})()
-                          "#,
-                init.env
+            var _env_file = {};
+            var _env = _env_file['{}'];
+            "#,
+                &env_script, &env
             );
-            self.execute_script(&Script::internal_script(&env))?;
-
-            let init = include_str!("init.js");
-            self.execute_script(&Script::internal_script(&String::from(init)))?;
-            Ok(())
-        } else {
-            panic!("We must initialize our engine before we can use it")
+            engine.execute_script(&Script::internal_script(script.as_str()))?;
         }
-    }
-}
 
-impl Default for V8ScriptEngine {
-    fn default() -> Self {
-        V8ScriptEngine::new()
+        let snapshot: serde_json::Value = serde_json::from_str(snapshot_script).unwrap();
+        declare(&mut engine, &snapshot)?;
+        let snapshot = format!("var _snapshot = {};", snapshot);
+        engine.execute_script(&Script::internal_script(snapshot.as_str()))?;
+
+        let script = include_str!("init.js");
+        engine.execute_script(&Script::internal_script(script))?;
+
+        Ok(engine)
     }
 }
 
@@ -124,40 +125,9 @@ impl ScriptEngine for V8ScriptEngine {
         "{}".to_string()
     }
 
-    fn initialize(&mut self, env_script: &str, env: &str) -> Result<(), Error> {
-        self.init = Some(InitialState {
-            env_file: env_script.to_string(),
-            env: env.to_string(),
-        });
-        // TODO: Double check this error mapping, is only for compatibility with boa script
-        // executor
-        self.init().map_err(|e| Error {
-            selection: e.selection,
-            kind: ErrorKind::ParseInitializeObject(format!("{:?}", e.kind)),
-        })
-    }
-
-    fn reset(&mut self, snapshot_script: &str) -> Result<(), Error> {
-        let mut handle_scope = HandleScope::new(&mut self.isolate);
-        let scope = handle_scope.enter();
-        let context = Context::new(scope);
-        self.global.set(scope, context);
-        self.init()?;
-        let script = if snapshot_script.trim().is_empty() {
-            "var _snapshot = {}".to_string()
-        } else {
-            format!(
-                r#" var _snapshot = {};
-                        (function() {{
-                            for (prop in _snapshot) {{
-                                this[prop] = _snapshot[prop];
-                            }}
-                            }})()
-                          "#,
-                snapshot_script
-            )
-        };
-        self.execute_script(&Script::internal_script(&script))?;
+    fn reset(&mut self) -> Result<(), Error> {
+        let snapshot = self.snapshot()?;
+        *self = V8ScriptEngine::new(self.env_file.as_str(), self.env.as_str(), snapshot.as_str())?;
         Ok(())
     }
 
@@ -165,6 +135,21 @@ impl ScriptEngine for V8ScriptEngine {
         let script = "JSON.stringify(_snapshot)";
         let out = self.execute_script(&Script::internal_script(script))?;
         Ok(out)
+    }
+}
+
+fn declare(engine: &mut V8ScriptEngine, variables_object: &serde_json::Value) -> Result<(), Error> {
+    if let serde_json::Value::Object(map) = variables_object {
+        for (key, value) in map {
+            let script = format!("this['{}'] = {};", key, serde_json::to_string(&value)?);
+            engine.execute_script(&Script::internal_script(script.as_str()))?;
+        }
+        Ok(())
+    } else {
+        Err(Error {
+            selection: Selection::none(),
+            kind: ErrorKind::ParseInitializeObject("Env error".to_string()),
+        })
     }
 }
 
