@@ -36,19 +36,23 @@ impl V8ScriptEngine {
             V8::initialize_platform(platform);
             V8::initialize();
         });
+        // This block here is needed to make sure that the variable go out
+        // of the scope before execute_script is invoked,
+        // otherwise the v8 script engine crash
+        let mut engine = {
+            let mut isolate = Isolate::new(Default::default());
+            let mut global = Global::<Context>::new();
+            let mut handle_scope = HandleScope::new(&mut isolate);
+            let scope = handle_scope.enter();
+            let context = Context::new(scope);
+            global.set(scope, context);
 
-        let mut isolate = Isolate::new(Default::default());
-        let mut global = Global::<Context>::new();
-        let mut handle_scope = HandleScope::new(&mut isolate);
-        let scope = handle_scope.enter();
-        let context = Context::new(scope);
-        global.set(scope, context);
-
-        let mut engine = V8ScriptEngine {
-            isolate,
-            global,
-            env_file: env_script.to_string(),
-            env: env.to_string(),
+            V8ScriptEngine {
+                isolate,
+                global,
+                env_file: env_script.to_string(),
+                env: env.to_string(),
+            }
         };
 
         let environment: serde_json::Value = serde_json::from_str(env_script)?;
