@@ -86,7 +86,7 @@ fn catch(
     scope: &mut Entered<ContextScope, Entered<HandleScope, OwnedIsolate>>,
     execute: bool,
 ) -> Error {
-    let exception = tc.exception().unwrap();
+    let exception = tc.exception(scope).unwrap();
     let msg = Exception::create_message(scope, exception);
     if execute {
         Error {

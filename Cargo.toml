@@ -21,7 +21,7 @@ appveyor = { repository = "bayne/dot-http", branch = "master", service = "github
 
 [dependencies]
 Boa = {version ="0.8.0", optional = true}
-rusty_v8 = {version = "0.4", optional = true} # Warning! Experimental
+rusty_v8 = {version = "0.5", optional = true} # Warning! Experimental
 reqwest = { version = "0.10.0-alpha.2", features = ["blocking"] }
 tokio = { version = "0.2", features = ["sync"] }
 pest = "2.1.2"
