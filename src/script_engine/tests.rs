@@ -55,8 +55,9 @@ fn test_parse_error() {
         result
     );
     if let Err(error) = result {
+        // Different engine return different errors, checking both
         assert!(
-            error.to_string().contains("ParsingError"),
+            error.to_string().contains("ParsingError") || error.to_string().contains("SyntaxError"),
             "Should've been a parsing error, but instead got:\n {:#?}",
             error
         );

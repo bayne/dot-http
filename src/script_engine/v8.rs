@@ -84,12 +84,20 @@ fn catch(
     script: &Script,
     tc: &mut TryCatch,
     scope: &mut Entered<ContextScope, Entered<HandleScope, OwnedIsolate>>,
+    execute: bool,
 ) -> Error {
     let exception = tc.exception().unwrap();
     let msg = Exception::create_message(scope, exception);
-    Error {
-        selection: script.selection.clone(),
-        kind: ErrorKind::Execute(msg.get(scope).to_rust_string_lossy(scope)),
+    if execute {
+        Error {
+            selection: script.selection.clone(),
+            kind: ErrorKind::Execute(msg.get(scope).to_rust_string_lossy(scope)),
+        }
+    } else {
+        Error {
+            selection: script.selection.clone(),
+            kind: ErrorKind::ParseInitializeObject(msg.get(scope).to_rust_string_lossy(scope)),
+        }
     }
 }
 
@@ -115,10 +123,10 @@ impl ScriptEngine for V8ScriptEngine {
         let source = V8String::new(scope, script.src).unwrap();
 
         let mut compiled = V8Script::compile(scope, context, source, None)
-            .ok_or_else(|| catch(script, try_catch, scope))?;
+            .ok_or_else(|| catch(script, try_catch, scope, false))?;
         let result = compiled
             .run(scope, context)
-            .ok_or_else(|| catch(script, try_catch, scope))?;
+            .ok_or_else(|| catch(script, try_catch, scope, true))?;
 
         let result = result.to_string(scope).unwrap();
 
