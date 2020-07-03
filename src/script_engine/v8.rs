@@ -36,19 +36,23 @@ impl V8ScriptEngine {
             V8::initialize_platform(platform);
             V8::initialize();
         });
+        // This block here is needed to make sure that the variable go out
+        // of the scope before execute_script is invoked,
+        // otherwise the v8 script engine crash
+        let mut engine = {
+            let mut isolate = Isolate::new(Default::default());
+            let mut global = Global::<Context>::new();
+            let mut handle_scope = HandleScope::new(&mut isolate);
+            let scope = handle_scope.enter();
+            let context = Context::new(scope);
+            global.set(scope, context);
 
-        let mut isolate = Isolate::new(Default::default());
-        let mut global = Global::<Context>::new();
-        let mut handle_scope = HandleScope::new(&mut isolate);
-        let scope = handle_scope.enter();
-        let context = Context::new(scope);
-        global.set(scope, context);
-
-        let mut engine = V8ScriptEngine {
-            isolate,
-            global,
-            env_file: env_script.to_string(),
-            env: env.to_string(),
+            V8ScriptEngine {
+                isolate,
+                global,
+                env_file: env_script.to_string(),
+                env: env.to_string(),
+            }
         };
 
         let environment: serde_json::Value = serde_json::from_str(env_script)?;
@@ -80,12 +84,20 @@ fn catch(
     script: &Script,
     tc: &mut TryCatch,
     scope: &mut Entered<ContextScope, Entered<HandleScope, OwnedIsolate>>,
+    execute: bool,
 ) -> Error {
-    let exception = tc.exception().unwrap();
+    let exception = tc.exception(scope).unwrap();
     let msg = Exception::create_message(scope, exception);
-    Error {
-        selection: script.selection.clone(),
-        kind: ErrorKind::Execute(msg.get(scope).to_rust_string_lossy(scope)),
+    if execute {
+        Error {
+            selection: script.selection.clone(),
+            kind: ErrorKind::Execute(msg.get(scope).to_rust_string_lossy(scope)),
+        }
+    } else {
+        Error {
+            selection: script.selection.clone(),
+            kind: ErrorKind::ParseInitializeObject(msg.get(scope).to_rust_string_lossy(scope)),
+        }
     }
 }
 
@@ -111,10 +123,10 @@ impl ScriptEngine for V8ScriptEngine {
         let source = V8String::new(scope, script.src).unwrap();
 
         let mut compiled = V8Script::compile(scope, context, source, None)
-            .ok_or_else(|| catch(script, try_catch, scope))?;
+            .ok_or_else(|| catch(script, try_catch, scope, false))?;
         let result = compiled
             .run(scope, context)
-            .ok_or_else(|| catch(script, try_catch, scope))?;
+            .ok_or_else(|| catch(script, try_catch, scope, true))?;
 
         let result = result.to_string(scope).unwrap();
 
