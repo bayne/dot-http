@@ -1,6 +1,9 @@
-use crate::model::*;
-use crate::script_engine::ErrorKind::ParseInitializeObject;
-use std::fmt::{Debug, Formatter};
+use crate::parser::Selection;
+use crate::Result;
+use serde::Deserialize;
+use serde::Serialize;
+use serde_json::Map;
+use std::fmt::Debug;
 
 #[cfg(feature = "boa")]
 pub mod boa;
@@ -10,6 +13,33 @@ pub mod v8;
 
 #[cfg(test)]
 mod tests;
+
+#[derive(Debug)]
+pub struct Value<S> {
+    pub state: S,
+}
+
+#[derive(Debug)]
+pub struct Processed {
+    pub value: String,
+}
+
+#[derive(Debug)]
+pub enum Unprocessed {
+    WithInline {
+        value: String,
+        inline_scripts: Vec<InlineScript>,
+        selection: Selection,
+    },
+    WithoutInline(String, Selection),
+}
+
+#[derive(Debug)]
+pub struct InlineScript {
+    pub script: String,
+    pub placeholder: String,
+    pub selection: Selection,
+}
 
 pub fn create_script_engine(
     env_script: &str,
@@ -65,83 +95,6 @@ fn create_script_v8_engine(
     None
 }
 
-#[derive(Debug)]
-pub struct Error {
-    selection: Selection,
-    kind: ErrorKind,
-}
-
-#[derive(Debug)]
-enum ErrorKind {
-    ParseInitializeObject(String),
-    Execute(String),
-}
-
-impl std::error::Error for Error {}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match &self.kind {
-            ParseInitializeObject(e) => f.write_fmt(format_args!(
-                "{selection}:, Could not parse initialize object, {error}",
-                selection = self.selection,
-                error = e
-            )),
-            _ => panic!(),
-        }
-    }
-}
-
-pub trait Processable {
-    type Output;
-    fn process(&self, _engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error>;
-}
-
-impl Processable for RequestScript<Unprocessed> {
-    type Output = RequestScript<Processed>;
-    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
-        Ok(RequestScript {
-            request: self.request.process(engine)?,
-            handler: self.handler.clone(),
-            selection: self.selection.clone(),
-        })
-    }
-}
-
-impl Processable for Request<Unprocessed> {
-    type Output = Request<Processed>;
-    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
-        let mut headers = vec![];
-        for header in &self.headers {
-            headers.push(header.process(engine)?);
-        }
-
-        let body = match &self.body {
-            Some(value) => Some(value.process(engine)?),
-            None => None,
-        };
-
-        Ok(Request {
-            method: self.method.clone(),
-            target: self.target.process(engine)?,
-            headers,
-            body,
-            selection: self.selection.clone(),
-        })
-    }
-}
-
-impl Processable for Header<Unprocessed> {
-    type Output = Header<Processed>;
-    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
-        Ok(Header {
-            field_name: self.field_name.clone(),
-            field_value: self.field_value.process(engine)?,
-            selection: self.selection.clone(),
-        })
-    }
-}
-
 pub struct Script<'a> {
     pub selection: Selection,
     pub src: &'a str,
@@ -157,19 +110,18 @@ impl<'a> Script<'a> {
 }
 
 pub trait ScriptEngine {
-    fn execute_script(&mut self, script: &Script) -> Result<String, Error>;
+    fn execute_script(&mut self, script: &Script) -> Result<String>;
 
     fn empty(&self) -> String;
 
-    fn reset(&mut self) -> Result<(), Error>;
+    fn reset(&mut self) -> Result<()>;
 
-    fn snapshot(&mut self) -> Result<String, Error>;
-}
+    fn snapshot(&mut self) -> Result<String>;
 
-impl Processable for Value<Unprocessed> {
-    type Output = Value<Processed>;
-    fn process(&self, engine: &mut dyn ScriptEngine) -> Result<Self::Output, Error> {
-        match self {
+    fn handle(&mut self, script: &Script, response: &crate::Response) -> Result<()>;
+
+    fn process(&mut self, value: Value<Unprocessed>) -> Result<Value<Processed>> {
+        match value {
             Value {
                 state:
                     Unprocessed::WithInline {
@@ -178,10 +130,10 @@ impl Processable for Value<Unprocessed> {
                         selection: _selection,
                     },
             } => {
-                let mut interpolated = value.clone();
+                let mut interpolated = value;
                 for inline_script in inline_scripts {
                     let placeholder = inline_script.placeholder.clone();
-                    let result = engine.execute_script(&Script {
+                    let result = self.execute_script(&Script {
                         selection: inline_script.selection.clone(),
                         src: &inline_script.script,
                     })?;
@@ -197,10 +149,61 @@ impl Processable for Value<Unprocessed> {
             Value {
                 state: Unprocessed::WithoutInline(value, _),
             } => Ok(Value {
-                state: Processed {
-                    value: value.clone(),
-                },
+                state: Processed { value },
             }),
         }
     }
+}
+
+#[derive(Deserialize, Serialize)]
+struct Response {
+    body: Option<String>,
+    headers: Map<String, serde_json::Value>,
+    status: u16,
+}
+
+impl From<&crate::Response> for Response {
+    fn from(response: &crate::Response) -> Self {
+        let mut headers = Map::new();
+        for (key, value) in response.headers.as_slice() {
+            headers.insert(key.clone(), serde_json::Value::String(value.clone()));
+        }
+        Response {
+            body: response.body.clone(),
+            headers,
+            status: response.status_code,
+        }
+    }
+}
+
+fn handle(
+    engine: &mut dyn ScriptEngine,
+    script: &Script,
+    response: &crate::Response,
+) -> Result<()> {
+    inject(engine, response)?;
+    engine.execute_script(&script)?;
+    Ok(())
+}
+
+fn inject(engine: &mut dyn ScriptEngine, response: &crate::Response) -> Result<()> {
+    let response: Response = response.into();
+
+    let script = format!(
+        "var response = {};",
+        serde_json::to_string(&response).unwrap()
+    );
+    engine.execute_script(&Script::internal_script(&script))?;
+    if let Some(body) = response.body {
+        if let Ok(serde_json::Value::Object(response_body)) = serde_json::from_str(body.as_str()) {
+            let script = format!(
+                "response.body = {};",
+                serde_json::to_string(&response_body).unwrap()
+            );
+            engine
+                .execute_script(&Script::internal_script(&script))
+                .unwrap();
+        }
+    }
+    Ok(())
 }

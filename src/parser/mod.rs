@@ -1,13 +1,15 @@
-extern crate pest;
-
 #[cfg(test)]
 pub mod tests;
 
-use crate::model::*;
+use crate::Result;
 use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest::Span;
+use serde::export::Formatter;
+use std::error;
+use std::fmt;
+use std::fmt::Display;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -16,14 +18,16 @@ struct ScriptParser;
 
 #[derive(Debug)]
 pub struct Error {
-    pub kind: ErrorKind,
     pub message: String,
     pub selection: Selection,
 }
 
-#[derive(Debug)]
-pub enum ErrorKind {
-    Parse,
+impl error::Error for Error {}
+
+impl fmt::Display for Error {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
+        fmt.write_str(self.message.as_str())
+    }
 }
 
 fn invalid_pair(expected: Rule, got: Rule) -> ! {
@@ -108,7 +112,7 @@ impl FromPair for Method {
     }
 }
 
-impl FromPair for Value<Unprocessed> {
+impl FromPair for Value {
     fn from_pair(filename: PathBuf, pair: Pair<'_, Rule>) -> Self {
         match (pair.as_rule(), pair.as_str()) {
             (Rule::request_target, string)
@@ -158,7 +162,7 @@ impl FromPair for InlineScript {
     }
 }
 
-impl FromPair for Header<Unprocessed> {
+impl FromPair for Header {
     fn from_pair(filename: PathBuf, pair: Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
             Rule::header_field => {
@@ -185,7 +189,7 @@ impl FromPair for Header<Unprocessed> {
     }
 }
 
-impl FromPair for Request<Unprocessed> {
+impl FromPair for Request {
     fn from_pair(filename: PathBuf, pair: Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
             Rule::request_script => {
@@ -211,7 +215,7 @@ impl FromPair for Request<Unprocessed> {
                             Rule::header_field => Some(Header::from_pair(filename.clone(), pair)),
                             _ => None,
                         })
-                        .collect::<Vec<Header<Unprocessed>>>(),
+                        .collect::<Vec<Header>>(),
                     body: {
                         let pair = pairs.find_map(|pair| match pair.as_rule() {
                             Rule::request_body => Some(pair),
@@ -230,7 +234,7 @@ impl FromPair for Request<Unprocessed> {
     }
 }
 
-impl FromPair for RequestScript<Unprocessed> {
+impl FromPair for RequestScript {
     fn from_pair(filename: PathBuf, pair: Pair<'_, Rule>) -> Self {
         match pair.as_rule() {
             Rule::request_script => {
@@ -264,7 +268,7 @@ impl FromPair for File {
                     .into_inner()
                     .filter(|pair| pair.as_rule() == Rule::request_script)
                     .map(|pair| RequestScript::from_pair(filename.clone(), pair))
-                    .collect::<Vec<RequestScript<Unprocessed>>>(),
+                    .collect::<Vec<RequestScript>>(),
             },
             _ => invalid_pair(Rule::file, pair.as_rule()),
         }
@@ -289,14 +293,133 @@ impl ToSelection for Span<'_> {
     }
 }
 
-pub fn parse(filename: PathBuf, source: &str) -> Result<File, Error> {
+pub fn parse(filename: PathBuf, source: &str) -> Result<File> {
     Ok(ScriptParser::parse(Rule::file, source)
         .map_err(|error| Error {
-            kind: ErrorKind::Parse,
             message: error.to_string(),
             selection: error.line_col.to_selection(filename.clone()),
         })?
         .map(|pair| File::from_pair(filename.clone(), pair))
         .last()
         .unwrap())
+}
+
+impl Display for Value {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match &self.state {
+            Unprocessed::WithInline { value, .. } => f.write_str(&value),
+            Unprocessed::WithoutInline(value, _) => f.write_str(&value),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Value {
+    pub state: Unprocessed,
+}
+
+#[derive(Debug)]
+pub enum Unprocessed {
+    WithInline {
+        value: String,
+        inline_scripts: Vec<InlineScript>,
+        selection: Selection,
+    },
+    WithoutInline(String, Selection),
+}
+
+#[derive(Debug)]
+pub struct InlineScript {
+    pub script: String,
+    pub placeholder: String,
+    pub selection: Selection,
+}
+
+#[derive(Debug)]
+pub struct File {
+    pub request_scripts: Vec<RequestScript>,
+}
+
+#[derive(Debug)]
+pub struct RequestScript {
+    pub request: Request,
+    pub handler: Option<Handler>,
+    pub selection: Selection,
+}
+
+#[derive(Debug)]
+pub struct Request {
+    pub method: Method,
+    pub target: Value,
+    pub headers: Vec<Header>,
+    pub body: Option<Value>,
+    pub selection: Selection,
+}
+
+#[derive(PartialEq, Debug, Clone)]
+pub enum Method {
+    Get(Selection),
+    Post(Selection),
+    Delete(Selection),
+    Put(Selection),
+    Patch(Selection),
+    Options(Selection),
+}
+
+#[derive(Debug)]
+pub struct Header {
+    pub field_name: String,
+    pub field_value: Value,
+    pub selection: Selection,
+}
+
+#[derive(Debug, Clone)]
+pub struct Handler {
+    pub script: String,
+    pub selection: Selection,
+}
+
+impl Selection {
+    pub fn none() -> Selection {
+        Selection {
+            filename: PathBuf::default(),
+            start: Position { line: 0, col: 0 },
+            end: Position { line: 0, col: 0 },
+        }
+    }
+}
+
+impl File {
+    pub fn request_scripts(
+        &self,
+        offset: usize,
+        all: bool,
+    ) -> impl Iterator<Item = &RequestScript> {
+        let mut scripts = self
+            .request_scripts
+            .iter()
+            .filter(move |request_script| {
+                (all || request_script.selection.start.line <= offset)
+                    && request_script.selection.end.line > offset
+            })
+            .peekable();
+
+        match scripts.peek() {
+            Some(_) => scripts,
+            None => panic!("Couldn't find any scripts in our file at the given line number"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Selection {
+    pub filename: PathBuf,
+    pub start: Position,
+    pub end: Position,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Position {
+    pub line: usize,
+    pub col: usize,
 }

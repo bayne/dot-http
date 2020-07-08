@@ -294,23 +294,15 @@
 //! ## License
 //! [Apache License 2.0](https://github.com/bayne/dot-http/blob/master/LICENSE)
 
-#[macro_use]
-extern crate pest_derive;
-#[macro_use]
-extern crate pest;
-
-pub mod controller;
-mod http_client;
-mod model;
-mod parser;
-mod response_handler;
-mod script_engine;
-
-use crate::controller::Controller;
+use anyhow::Result;
 use clap::{App, Arg};
+use dot_http::output::print::PrintOutputter;
+use dot_http::Runtime;
+use std::borrow::BorrowMut;
+use std::io::stdout;
 use std::path::Path;
 
-fn main() {
+fn main() -> Result<()> {
     let matches = App::new("dot-http")
         .version("0.1.0")
         .about("Executes HTTP scripts")
@@ -353,21 +345,25 @@ fn main() {
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
 
-    let script_file = matches.value_of("FILE").unwrap().to_string();
+    let script_file = matches.value_of("FILE").unwrap();
     let offset: usize = matches.value_of("LINE").unwrap().parse().unwrap();
     let all: bool = matches.is_present("ALL");
-    let env = matches.value_of("ENVIRONMENT").unwrap().to_string();
-    let env_file = matches.value_of("ENV_FILE").unwrap().to_string();
-    let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap().to_string();
+    let env = matches.value_of("ENVIRONMENT").unwrap();
+    let env_file = matches.value_of("ENV_FILE").unwrap();
+    let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap();
 
-    let mut controller =
-        Controller::new(env, Path::new(&snapshot_file), Path::new(&env_file)).unwrap();
-    match controller.execute(Path::new(&script_file), offset, all) {
-        Ok(r) => r,
-        Err(e) => {
-            eprintln!("{}", e);
-        }
-    }
+    let mut stdout = stdout();
+    let mut outputter = PrintOutputter::new(stdout.borrow_mut());
+
+    let mut runtime = Runtime::new(
+        env,
+        Path::new(snapshot_file),
+        Path::new(env_file),
+        outputter.borrow_mut(),
+    )
+    .unwrap();
+
+    runtime.execute(Path::new(script_file), offset, all)
 }
 
 fn is_valid_line_number(val: String) -> Result<(), String> {

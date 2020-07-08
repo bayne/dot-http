@@ -1,27 +1,41 @@
-use crate::model::*;
-use http_test_server::TestServer;
+use crate::http_client::reqwest::ReqwestHttpClient;
+use crate::http_client::HttpClient;
+use crate::{Method, Request};
+use httpmock::{Mock, MockServer};
 
 #[test]
-fn test_execute() {
-    let server = TestServer::new().unwrap();
-    server.create_resource("/defaults");
+fn execute() {
+    let body = "{\"result\": \"content\"}";
 
-    let script = RequestScript {
-        request: Request {
-            method: Method::Get(Selection::none()),
-            target: Value {
-                state: Processed {
-                    value: format_args!("http://localhost:{port}/defaults", port = server.port())
-                        .to_string(),
-                },
-            },
-            headers: vec![],
-            body: None,
-            selection: Selection::none(),
-        },
-        handler: None,
-        selection: Selection::none(),
+    let server = MockServer::start();
+
+    let mock = Mock::new()
+        .expect_method(httpmock::Method::POST)
+        .expect_path("/defaults")
+        .expect_body(body)
+        .expect_header("X-Custom-Header", "test_validate_verify")
+        .expect_header("Content-Type", "application/json")
+        .return_status(200)
+        .create_on(&server);
+
+    let request = Request {
+        method: Method::Post,
+        target: format_args!("http://localhost:{port}/defaults", port = server.port()).to_string(),
+        headers: vec![
+            (
+                String::from("Content-Type"),
+                String::from("application/json"),
+            ),
+            (
+                String::from("X-Custom-Header"),
+                String::from("test_validate_verify"),
+            ),
+        ],
+        body: Some(String::from(body)),
     };
-    let res = script.request.execute().unwrap();
-    assert_eq!(200, res.status_code);
+    let client = ReqwestHttpClient::default();
+    let res = client.execute(&request).unwrap();
+
+    assert_eq!(mock.times_called(), 1);
+    assert_eq!(res.status_code, 200);
 }
