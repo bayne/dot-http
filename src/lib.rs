@@ -5,7 +5,6 @@ extern crate pest_derive;
 #[macro_use]
 extern crate pest;
 
-use crate::http_client::reqwest::ReqwestHttpClient;
 use crate::http_client::HttpClient;
 use crate::output::Outputter;
 use crate::parser::{parse, Header};
@@ -15,7 +14,7 @@ use std::borrow::BorrowMut;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-mod http_client;
+pub mod http_client;
 pub mod output;
 mod parser;
 mod script_engine;
@@ -35,6 +34,7 @@ impl<'a> Runtime<'a> {
         snapshot_file: &Path,
         env_file: &Path,
         outputter: &'a mut dyn Outputter,
+        client: Box<dyn HttpClient>,
     ) -> Result<Runtime<'a>> {
         let env_file = match read_to_string(env_file) {
             Ok(script) => Ok(script),
@@ -53,7 +53,6 @@ impl<'a> Runtime<'a> {
 
         let engine = create_script_engine(&env_file, env, &snapshot);
 
-        let client = Box::new(ReqwestHttpClient::default());
         Ok(Runtime {
             outputter,
             snapshot_file: PathBuf::from(snapshot_file),

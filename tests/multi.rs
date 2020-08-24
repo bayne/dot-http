@@ -1,4 +1,5 @@
 use crate::common::{create_file, DebugWriter};
+use dot_http::http_client::reqwest::ReqwestHttpClient;
 use dot_http::output::print::PrintOutputter;
 use dot_http::Runtime;
 use httpmock::{Mock, MockServer};
@@ -56,7 +57,15 @@ GET http://localhost:{port}/multi_get_third\
     let writer = &mut DebugWriter(String::new());
     let mut outputter = PrintOutputter::new(writer);
 
-    let mut runtime = Runtime::new(env, &snapshot_file, &env_file, outputter.borrow_mut()).unwrap();
+    let client = Box::new(ReqwestHttpClient::default());
+    let mut runtime = Runtime::new(
+        env,
+        &snapshot_file,
+        &env_file,
+        outputter.borrow_mut(),
+        client,
+    )
+    .unwrap();
 
     runtime.execute(&script_file, 1, true).unwrap();
 

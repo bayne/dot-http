@@ -4,11 +4,19 @@ use reqwest::blocking::RequestBuilder;
 use reqwest::header::HeaderMap;
 use std::convert::{TryFrom, TryInto};
 
-pub struct ReqwestHttpClient;
+pub struct ReqwestHttpClient {
+    ssl_check: bool,
+}
 
 impl Default for ReqwestHttpClient {
     fn default() -> Self {
-        ReqwestHttpClient
+        ReqwestHttpClient { ssl_check: true }
+    }
+}
+
+impl ReqwestHttpClient {
+    pub fn new_with_check(ssl_check: bool) -> Self {
+        ReqwestHttpClient { ssl_check }
     }
 }
 
@@ -21,7 +29,9 @@ impl HttpClient for ReqwestHttpClient {
             body,
         } = request;
 
-        let client = reqwest::blocking::Client::new();
+        let client = reqwest::blocking::Client::builder()
+            .danger_accept_invalid_certs(self.ssl_check)
+            .build()?;
         let mut request_builder = client.request(method.into(), target);
         request_builder = set_headers(headers, request_builder);
         if let Some(body) = body {

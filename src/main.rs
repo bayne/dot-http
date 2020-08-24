@@ -296,6 +296,7 @@
 
 use anyhow::Result;
 use clap::{App, Arg};
+use dot_http::http_client::reqwest::ReqwestHttpClient;
 use dot_http::output::print::PrintOutputter;
 use dot_http::Runtime;
 use std::borrow::BorrowMut;
@@ -342,6 +343,12 @@ fn main() -> Result<()> {
                 .short("a")
                 .help("Sequentially run all the requests in the file"),
         )
+        .arg(
+            Arg::with_name("IGNORE_CERT")
+                .short("i")
+                .long("ignore-certificates")
+                .help("Ignore invalid certificates"),
+        )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
 
@@ -351,15 +358,17 @@ fn main() -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let env_file = matches.value_of("ENV_FILE").unwrap();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap();
+    let ignore_certificates: bool = matches.is_present("IGNORE_CERT");
 
     let mut stdout = stdout();
     let mut outputter = PrintOutputter::new(stdout.borrow_mut());
-
+    let client = Box::new(ReqwestHttpClient::new_with_check(!ignore_certificates));
     let mut runtime = Runtime::new(
         env,
         Path::new(snapshot_file),
         Path::new(env_file),
         outputter.borrow_mut(),
+        client,
     )
     .unwrap();
 
