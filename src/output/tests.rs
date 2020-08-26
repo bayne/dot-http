@@ -39,5 +39,10 @@ fn format_parsing_test() {
     assert_eq!(
         result.unwrap_err().to_string(),
         "Invalid formatting character 'X'"
-    )
+    );
+    let result = parse_format("%R");
+    assert_eq!(
+        result.expect("parse correctly"),
+        vec![FormatItem::FirstLine,]
+    );
 }

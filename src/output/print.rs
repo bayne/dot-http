@@ -26,15 +26,13 @@ impl<'a, W: Write> FormattedOutputter<'a, W> {
 fn format_headers(headers: &[(String, String)]) -> String {
     headers
         .iter()
-        .map(|(key, value)| format!("\n{}: {}", key, value))
+        .map(|(key, value)| format!("{}: {}\n", key, value))
         .collect()
 }
 
 fn format_body(body: &Option<String>) -> String {
     match body {
-        Some(body) => String::from("\n\n")
-            .add(&prettify_response_body(&body))
-            .add("\n"),
+        Some(body) => prettify_response_body(&body),
         None => String::from(""),
     }
 }
@@ -69,6 +67,7 @@ impl<'a, W: Write> Outputter for FormattedOutputter<'a, W> {
             body,
             ..
         } = request;
+
         for format_item in &self.request_format {
             let to_write = match format_item {
                 FormatItem::FirstLine => format!("{} {}", method, target),

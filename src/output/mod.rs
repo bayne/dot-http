@@ -31,9 +31,9 @@ pub fn parse_format(format: &str) -> Result<Vec<FormatItem>> {
             if let Some(a) = action {
                 if buff.len() > 0 {
                     result.push(FormatItem::Chars(buff));
-                    result.push(a);
                     buff = String::new();
                 }
+                result.push(a);
             } else {
                 buff.push(ch);
             }
