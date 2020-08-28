@@ -1,5 +1,6 @@
 use crate::common::{create_file, DebugWriter};
-use dot_http::output::print::PrintOutputter;
+use dot_http::output::parse_format;
+use dot_http::output::print::FormattedOutputter;
 use dot_http::{ClientConfig, Runtime};
 use httpmock::{Mock, MockServer};
 use std::borrow::BorrowMut;
@@ -25,7 +26,13 @@ fn simple_get() {
         port = server.port()
     ));
     let writer = &mut DebugWriter(String::new());
-    let mut outputter = PrintOutputter::new(writer);
+    let request_format = "%R\n";
+    let response_format = "%R\n%H\n%B\n";
+    let mut outputter = FormattedOutputter::new(
+        writer,
+        parse_format(request_format).unwrap(),
+        parse_format(response_format).unwrap(),
+    );
 
     let mut runtime = Runtime::new(
         env,
@@ -47,7 +54,7 @@ GET http://localhost:{}/simple_get/30
 HTTP/1.1 200 OK
 date: \n\
 content-length: 0\
-            ",
+\n\n\n",
             server.port()
         )
     );
@@ -79,7 +86,13 @@ POST http://localhost:{port}/simple_post
         port = server.port(),
     ));
     let writer = &mut DebugWriter(String::new());
-    let mut outputter = PrintOutputter::new(writer);
+    let request_format = "%R\n";
+    let response_format = "%R\n%H\n%B\n";
+    let mut outputter = FormattedOutputter::new(
+        writer,
+        parse_format(request_format).unwrap(),
+        parse_format(response_format).unwrap(),
+    );
 
     let mut runtime = Runtime::new(
         env,

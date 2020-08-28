@@ -80,4 +80,3 @@ impl<'a, W: Write> Outputter for FormattedOutputter<'a, W> {
         Ok(())
     }
 }
-
