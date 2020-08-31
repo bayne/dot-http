@@ -14,7 +14,7 @@ use std::borrow::BorrowMut;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-pub mod http_client;
+mod http_client;
 pub mod output;
 mod parser;
 mod script_engine;

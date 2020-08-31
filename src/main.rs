@@ -344,10 +344,10 @@ fn main() -> Result<()> {
                 .help("Sequentially run all the requests in the file"),
         )
         .arg(
-            Arg::with_name("IGNORE_CERT")
-                .short("i")
-                .long("ignore-certificates")
-                .help("Ignore invalid certificates"),
+            Arg::with_name("ACCEPT_INVALID_CERT")
+                .short("k")
+                .long("danger-accept-invalid-certs")
+                .help("Controls the use of certificate validation."),
         )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();

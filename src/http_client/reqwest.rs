@@ -5,7 +5,7 @@ use reqwest::header::HeaderMap;
 use std::convert::{TryFrom, TryInto};
 
 pub struct ReqwestHttpClient {
-    ssl_check: bool,
+    client: Client,
 }
 
 impl Default for ReqwestHttpClient {
@@ -28,11 +28,19 @@ impl HttpClient for ReqwestHttpClient {
             headers,
             body,
         } = request;
-
+    fn create(config: ClientConfig) -> ReqwestHttpClient
+    where
+        Self: Sized,
+    {
         let client = reqwest::blocking::Client::builder()
-            .danger_accept_invalid_certs(self.ssl_check)
-            .build()?;
-        let mut request_builder = client.request(method.into(), target);
+            .danger_accept_invalid_certs(config.ssl_check)
+            .build()
+            .unwrap();
+
+        ReqwestHttpClient { client }
+    }
+        let mut request_builder = self.client.request(method.into(), target);
+        request_builder = set_headers(headers, request_builder);
         request_builder = set_headers(headers, request_builder);
         if let Some(body) = body {
             request_builder = set_body(body, request_builder);
