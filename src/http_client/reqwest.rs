@@ -1,6 +1,6 @@
-use crate::http_client::HttpClient;
+use crate::http_client::{ClientConfig, HttpClient};
 use crate::{Method, Request, Response, Result, Version};
-use reqwest::blocking::RequestBuilder;
+use reqwest::blocking::{Client, RequestBuilder};
 use reqwest::header::HeaderMap;
 use std::convert::{TryFrom, TryInto};
 
@@ -10,24 +10,11 @@ pub struct ReqwestHttpClient {
 
 impl Default for ReqwestHttpClient {
     fn default() -> Self {
-        ReqwestHttpClient { ssl_check: true }
-    }
-}
-
-impl ReqwestHttpClient {
-    pub fn new_with_check(ssl_check: bool) -> Self {
-        ReqwestHttpClient { ssl_check }
+        Self::create(ClientConfig::default())
     }
 }
 
 impl HttpClient for ReqwestHttpClient {
-    fn execute(&self, request: &Request) -> Result<Response> {
-        let Request {
-            method,
-            target,
-            headers,
-            body,
-        } = request;
     fn create(config: ClientConfig) -> ReqwestHttpClient
     where
         Self: Sized,
@@ -39,6 +26,14 @@ impl HttpClient for ReqwestHttpClient {
 
         ReqwestHttpClient { client }
     }
+
+    fn execute(&self, request: &Request) -> Result<Response> {
+        let Request {
+            method,
+            target,
+            headers,
+            body,
+        } = request;
         let mut request_builder = self.client.request(method.into(), target);
         request_builder = set_headers(headers, request_builder);
         request_builder = set_headers(headers, request_builder);

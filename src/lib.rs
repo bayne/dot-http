@@ -5,6 +5,7 @@ extern crate pest_derive;
 #[macro_use]
 extern crate pest;
 
+use crate::http_client::reqwest::ReqwestHttpClient;
 use crate::http_client::HttpClient;
 use crate::output::Outputter;
 use crate::parser::{parse, Header};
@@ -21,6 +22,22 @@ mod script_engine;
 
 pub type Result<T> = anyhow::Result<T>;
 
+pub struct ClientConfig {
+    pub ssl_check: bool,
+}
+
+impl Default for ClientConfig {
+    fn default() -> Self {
+        Self { ssl_check: true }
+    }
+}
+
+impl ClientConfig {
+    pub fn new(ssl_check: bool) -> Self {
+        Self { ssl_check }
+    }
+}
+
 pub struct Runtime<'a> {
     engine: Box<dyn ScriptEngine>,
     snapshot_file: PathBuf,
@@ -34,7 +51,7 @@ impl<'a> Runtime<'a> {
         snapshot_file: &Path,
         env_file: &Path,
         outputter: &'a mut dyn Outputter,
-        client: Box<dyn HttpClient>,
+        config: ClientConfig,
     ) -> Result<Runtime<'a>> {
         let env_file = match read_to_string(env_file) {
             Ok(script) => Ok(script),
@@ -52,6 +69,7 @@ impl<'a> Runtime<'a> {
         }?;
 
         let engine = create_script_engine(&env_file, env, &snapshot);
+        let client = Box::new(ReqwestHttpClient::create(config));
 
         Ok(Runtime {
             outputter,

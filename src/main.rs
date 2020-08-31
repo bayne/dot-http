@@ -296,9 +296,8 @@
 
 use anyhow::Result;
 use clap::{App, Arg};
-use dot_http::http_client::reqwest::ReqwestHttpClient;
 use dot_http::output::print::PrintOutputter;
-use dot_http::Runtime;
+use dot_http::{ClientConfig, Runtime};
 use std::borrow::BorrowMut;
 use std::io::stdout;
 use std::path::Path;
@@ -362,13 +361,13 @@ fn main() -> Result<()> {
 
     let mut stdout = stdout();
     let mut outputter = PrintOutputter::new(stdout.borrow_mut());
-    let client = Box::new(ReqwestHttpClient::new_with_check(!ignore_certificates));
+    let client_config = ClientConfig::new(!ignore_certificates);
     let mut runtime = Runtime::new(
         env,
         Path::new(snapshot_file),
         Path::new(env_file),
         outputter.borrow_mut(),
-        client,
+        client_config,
     )
     .unwrap();
 
