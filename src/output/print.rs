@@ -49,8 +49,8 @@ impl<'a, W: Write> Outputter for FormattedOutputter<'a, W> {
         for format_item in &self.response_format {
             let to_write = match format_item {
                 FormatItem::FirstLine => format!("{} {}", version, status),
-                FormatItem::Headers => format!("{}", format_headers(headers)),
-                FormatItem::Body => format!("{}", format_body(body)),
+                FormatItem::Headers => format_headers(headers),
+                FormatItem::Body => format_body(body),
                 FormatItem::Chars(s) => s.clone(),
             };
 
@@ -70,8 +70,8 @@ impl<'a, W: Write> Outputter for FormattedOutputter<'a, W> {
         for format_item in &self.request_format {
             let to_write = match format_item {
                 FormatItem::FirstLine => format!("{} {}", method, target),
-                FormatItem::Headers => format!("{}", format_headers(headers)),
-                FormatItem::Body => format!("{}", format_body(body)),
+                FormatItem::Headers => format_headers(headers),
+                FormatItem::Body => format_body(body),
                 FormatItem::Chars(s) => s.clone(),
             };
 

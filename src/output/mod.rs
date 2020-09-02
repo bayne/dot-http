@@ -29,7 +29,7 @@ pub fn parse_format(format: &str) -> Result<Vec<FormatItem>> {
                 _ => return Err(anyhow!("Invalid formatting character '{}'", ch)),
             };
             if let Some(a) = action {
-                if buff.len() > 0 {
+                if !buff.is_empty() {
                     result.push(FormatItem::Chars(buff));
                     buff = String::new();
                 }
@@ -43,7 +43,7 @@ pub fn parse_format(format: &str) -> Result<Vec<FormatItem>> {
             buff.push(ch);
         }
     }
-    if buff.len() > 0 {
+    if !buff.is_empty() {
         result.push(FormatItem::Chars(buff));
     }
     Ok(result)
