@@ -297,7 +297,7 @@
 use anyhow::Result;
 use clap::{App, Arg};
 use dot_http::output::print::PrintOutputter;
-use dot_http::Runtime;
+use dot_http::{ClientConfig, Runtime};
 use std::borrow::BorrowMut;
 use std::io::stdout;
 use std::path::Path;
@@ -342,6 +342,12 @@ fn main() -> Result<()> {
                 .short("a")
                 .help("Sequentially run all the requests in the file"),
         )
+        .arg(
+            Arg::with_name("ACCEPT_INVALID_CERT")
+                .short("k")
+                .long("danger-accept-invalid-certs")
+                .help("Controls the use of certificate validation."),
+        )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
 
@@ -351,15 +357,17 @@ fn main() -> Result<()> {
     let env = matches.value_of("ENVIRONMENT").unwrap();
     let env_file = matches.value_of("ENV_FILE").unwrap();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap();
+    let ignore_certificates: bool = matches.is_present("IGNORE_CERT");
 
     let mut stdout = stdout();
     let mut outputter = PrintOutputter::new(stdout.borrow_mut());
-
+    let client_config = ClientConfig::new(!ignore_certificates);
     let mut runtime = Runtime::new(
         env,
         Path::new(snapshot_file),
         Path::new(env_file),
         outputter.borrow_mut(),
+        client_config,
     )
     .unwrap();
 

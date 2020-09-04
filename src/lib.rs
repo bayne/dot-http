@@ -22,6 +22,22 @@ mod script_engine;
 
 pub type Result<T> = anyhow::Result<T>;
 
+pub struct ClientConfig {
+    pub ssl_check: bool,
+}
+
+impl Default for ClientConfig {
+    fn default() -> Self {
+        Self { ssl_check: true }
+    }
+}
+
+impl ClientConfig {
+    pub fn new(ssl_check: bool) -> Self {
+        Self { ssl_check }
+    }
+}
+
 pub struct Runtime<'a> {
     engine: Box<dyn ScriptEngine>,
     snapshot_file: PathBuf,
@@ -35,6 +51,7 @@ impl<'a> Runtime<'a> {
         snapshot_file: &Path,
         env_file: &Path,
         outputter: &'a mut dyn Outputter,
+        config: ClientConfig,
     ) -> Result<Runtime<'a>> {
         let env_file = match read_to_string(env_file) {
             Ok(script) => Ok(script),
@@ -52,8 +69,8 @@ impl<'a> Runtime<'a> {
         }?;
 
         let engine = create_script_engine(&env_file, env, &snapshot);
+        let client = Box::new(ReqwestHttpClient::create(config));
 
-        let client = Box::new(ReqwestHttpClient::default());
         Ok(Runtime {
             outputter,
             snapshot_file: PathBuf::from(snapshot_file),
