@@ -20,7 +20,7 @@ fn test_syntax_error() {
     );
     if let Err(error) = result {
         assert!(
-            error.to_string().contains("Expecting Token"),
+            error.to_string().to_lowercase().contains("token"),
             "Should've been a lexer error, but instead got:\n {:#?}",
             error
         );
