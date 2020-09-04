@@ -44,6 +44,12 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
+      
+      - name: Run cargo test v8 engine
+        uses: actions-rs/cargo@v1
+        with:
+          command: test 
+          args: --no-default-features --features=rusty_v8
 
   lints:
     name: Lints
