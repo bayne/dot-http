@@ -1,4 +1,3 @@
-use crate::http_client;
 use crate::script_engine::{handle, Script, ScriptEngine};
 use crate::Result;
 use rusty_v8::{
@@ -70,6 +69,14 @@ impl V8ScriptEngine {
         Ok(engine)
     }
 }
+fn catch(
+    tc: &mut TryCatch,
+    scope: &mut Entered<ContextScope, Entered<HandleScope, OwnedIsolate>>,
+) -> anyhow::Error {
+    let exception = tc.exception(scope).unwrap();
+    let msg = Exception::create_message(scope, exception);
+    anyhow!("{}", msg.get(scope).to_rust_string_lossy(scope))
+}
 
 impl ScriptEngine for V8ScriptEngine {
     fn execute_script(&mut self, script: &Script) -> Result<String> {
@@ -91,9 +98,11 @@ impl ScriptEngine for V8ScriptEngine {
         let mut try_catch = TryCatch::new(scope);
         let try_catch = try_catch.enter();
         let source = V8String::new(scope, script.src).unwrap();
-
-        let mut compiled = V8Script::compile(scope, context, source, None).unwrap();
-        let result = compiled.run(scope, context).unwrap();
+        let mut compiled = V8Script::compile(scope, context, source, None)
+            .ok_or_else(|| catch(try_catch, scope))?;
+        let result = compiled
+            .run(scope, context)
+            .ok_or_else(|| catch(try_catch, scope))?;
 
         let result = result.to_string(scope).unwrap();
 
