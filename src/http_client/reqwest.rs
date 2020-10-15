@@ -36,7 +36,6 @@ impl HttpClient for ReqwestHttpClient {
         } = request;
         let mut request_builder = self.client.request(method.into(), target);
         request_builder = set_headers(headers, request_builder);
-        request_builder = set_headers(headers, request_builder);
         if let Some(body) = body {
             request_builder = set_body(body, request_builder);
         }
