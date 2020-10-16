@@ -182,7 +182,9 @@ Accept: *#/*
 Content-Type: {{ content_type }}
 
 {
-    \"fieldA\": \"value1\"
+    \"fieldA\": {{
+    content_type
+    }}
 }
 
 > {%
@@ -245,4 +247,23 @@ POST http://httpbin.org/post
     }
 
     assert!(file.is_ok());
+}
+
+#[test]
+fn mixing_body_and_headers() {
+    let test = "\
+GET http://example.com HTTP/1.1
+header: some-value";
+
+    let file = parser::parse(PathBuf::default(), test);
+    if let Err(e) = &file {
+        println!("{:?}", e);
+    }
+
+    assert!(file.is_ok());
+
+    let request = &file.unwrap().request_scripts[0].request;
+
+    assert!(&request.headers[0].field_name == "header");
+    assert!(&request.body.is_none());
 }
