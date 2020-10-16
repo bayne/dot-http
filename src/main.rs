@@ -351,14 +351,18 @@ fn main() -> Result<()> {
         .arg(
             Arg::with_name("RESPONSE_OUTPUT_FORMAT")
                 .long("response-output-format")
+                .short("s")
                 .default_value("%R\n%H\n%B\n")
-                .help("Define the format for print the response, possible options %R response line, %H headers, %B body")
+                .hide_default_value(true)
+                .help("Define the format for print the response, possible options %R response line, %H headers, %B body \n[default: %R\\n%H\\n%N\\n]")
         )
         .arg(
             Arg::with_name("REQUEST_OUTPUT_FORMAT")
                 .long("request-output-format")
+                .short("q")
                 .default_value("%R\n\n")
-                .help("Define the format for print the request, possible options %R request line, %H headers, %B body")
+                .hide_default_value(true)
+                .help("Define the format for print the request, possible options %R request line, %H headers, %B body \n[default: %R\\n\\n]")
         )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
