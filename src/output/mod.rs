@@ -6,7 +6,7 @@ mod tests;
 use crate::{Method, Request, Response, Result, Version};
 use std::fmt;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum FormatItem {
     FirstLine,
     Headers,
