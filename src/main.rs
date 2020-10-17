@@ -296,7 +296,7 @@
 
 use anyhow::Result;
 use clap::{App, Arg};
-use dot_http::output::print::PrintOutputter;
+use dot_http::output::{parse_format, print::FormattedOutputter};
 use dot_http::{ClientConfig, Runtime};
 use std::borrow::BorrowMut;
 use std::io::stdout;
@@ -348,6 +348,22 @@ fn main() -> Result<()> {
                 .long("danger-accept-invalid-certs")
                 .help("Controls the use of certificate validation."),
         )
+        .arg(
+            Arg::with_name("RESPONSE_OUTPUT_FORMAT")
+                .long("response-output-format")
+                .short("s")
+                .default_value("%R\n%H\n%B\n")
+                .hide_default_value(true)
+                .help("Define the format for print the response, possible options %R response line, %H headers, %B body \n[default: %R\\n%H\\n%N\\n]")
+        )
+        .arg(
+            Arg::with_name("REQUEST_OUTPUT_FORMAT")
+                .long("request-output-format")
+                .short("q")
+                .default_value("%R\n\n")
+                .hide_default_value(true)
+                .help("Define the format for print the request, possible options %R request line, %H headers, %B body \n[default: %R\\n\\n]")
+        )
         .usage("dot-http [OPTIONS] <FILE>")
         .get_matches();
 
@@ -358,10 +374,18 @@ fn main() -> Result<()> {
     let env_file = matches.value_of("ENV_FILE").unwrap();
     let snapshot_file = matches.value_of("SNAPSHOT_FILE").unwrap();
     let ignore_certificates: bool = matches.is_present("IGNORE_CERT");
+    let response_format = matches.value_of("RESPONSE_OUTPUT_FORMAT").unwrap();
+    let request_format = matches.value_of("REQUEST_OUTPUT_FORMAT").unwrap();
+
+    let client_config = ClientConfig::new(!ignore_certificates);
 
     let mut stdout = stdout();
-    let mut outputter = PrintOutputter::new(stdout.borrow_mut());
-    let client_config = ClientConfig::new(!ignore_certificates);
+    let mut outputter = FormattedOutputter::new(
+        stdout.borrow_mut(),
+        parse_format(request_format)?,
+        parse_format(response_format)?,
+    );
+
     let mut runtime = Runtime::new(
         env,
         Path::new(snapshot_file),
