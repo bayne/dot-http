@@ -14,6 +14,7 @@ use anyhow::Context;
 use std::borrow::BorrowMut;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
+use http::Method;
 
 mod http_client;
 pub mod output;
@@ -99,7 +100,7 @@ impl<'a> Runtime<'a> {
                 .with_context(|| format!("Failed outputting request found on line {}", offset))?;
 
             let response = client
-                .execute(&request)
+                .execute(request)
                 .with_context(|| format!("Error executing request found on line {}", offset))?;
             outputter.response(&response).with_context(|| {
                 format!(
@@ -167,20 +168,24 @@ fn process(engine: &mut dyn ScriptEngine, request: &parser::Request) -> Result<R
         body,
         ..
     } = request;
-    let headers = process_headers(engine, headers)?;
-    Ok(Request {
-        method: method.into(),
-        target: engine
+
+    let mut builder = http::Request::builder()
+        .method(http::Method::from(method))
+        .uri(engine
             .process(target.into())
             .with_context(|| format!("Failed processing: {}", target))?
             .state
-            .value,
-        headers,
-        body: match body {
-            None => None,
-            Some(body) => Some(engine.process(body.into())?.state.value),
-        },
+            .value);
+
+    for (name, value) in process_headers(engine, headers)? {
+        builder = builder.header(&name, &value);
+    }
+
+    builder.body(match body {
+        None => None,
+        Some(body) => Some(engine.process(body.into())?.state.value),
     })
+        .map_err(|e| anyhow!("Http Request Error: {}", e))
 }
 
 impl From<&parser::InlineScript> for script_engine::InlineScript {
@@ -229,43 +234,16 @@ impl From<&parser::Value> for script_engine::Value<script_engine::Unprocessed> {
 impl From<&parser::Method> for Method {
     fn from(method: &parser::Method) -> Self {
         match method {
-            parser::Method::Get(_) => Method::Get,
-            parser::Method::Post(_) => Method::Post,
-            parser::Method::Delete(_) => Method::Delete,
-            parser::Method::Put(_) => Method::Put,
-            parser::Method::Patch(_) => Method::Patch,
-            parser::Method::Options(_) => Method::Options,
+            parser::Method::Get(_) => http::Method::GET,
+            parser::Method::Post(_) => http::Method::POST,
+            parser::Method::Delete(_) => http::Method::DELETE,
+            parser::Method::Put(_) => http::Method::PUT,
+            parser::Method::Patch(_) => http::Method::PATCH,
+            parser::Method::Options(_) => http::Method::OPTIONS,
         }
     }
 }
 
-pub struct Request {
-    pub method: Method,
-    pub target: String,
-    pub headers: Vec<(String, String)>,
-    pub body: Option<String>,
-}
+pub type Request = http::Request<Option<String>>;
 
-pub enum Method {
-    Get,
-    Post,
-    Delete,
-    Put,
-    Patch,
-    Options,
-}
-
-pub enum Version {
-    Http09,
-    Http2,
-    Http10,
-    Http11,
-}
-
-pub struct Response {
-    pub version: Version,
-    pub status_code: u16,
-    pub status: String,
-    pub headers: Vec<(String, String)>,
-    pub body: Option<String>,
-}
+pub type Response = http::Response<Option<String>>;

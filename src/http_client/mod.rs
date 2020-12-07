@@ -10,5 +10,5 @@ pub trait HttpClient {
     where
         Self: Sized;
 
-    fn execute(&self, request: &Request) -> Result<Response>;
+    fn execute(&self, request: Request) -> Result<Response>;
 }

@@ -1,9 +1,11 @@
-use crate::parser::Selection;
-use crate::Result;
+use std::fmt::Debug;
+
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Map;
-use std::fmt::Debug;
+
+use crate::parser::Selection;
+use crate::Result;
 
 #[cfg(feature = "boa")]
 pub mod boa;
@@ -165,13 +167,16 @@ struct Response {
 impl From<&crate::Response> for Response {
     fn from(response: &crate::Response) -> Self {
         let mut headers = Map::new();
-        for (key, value) in response.headers.as_slice() {
-            headers.insert(key.clone(), serde_json::Value::String(value.clone()));
+        for (key, value) in response.headers() {
+            headers.insert(
+                key.to_string(),
+                serde_json::Value::String(String::from_utf8_lossy(value.as_bytes()).to_string()),
+            );
         }
         Response {
-            body: response.body.clone(),
+            body: response.body().clone(),
             headers,
-            status: response.status_code,
+            status: response.status().as_u16(),
         }
     }
 }

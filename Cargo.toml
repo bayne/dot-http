@@ -27,6 +27,7 @@ tokio = { version = "0.2", features = ["sync"] }
 pest = "2.1.2"
 pest_derive = "2.1.0"
 clap = "2.33.0"
+http = "0.2.1"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
