@@ -10,10 +10,10 @@ use rusty_v8::{
     Script as V8Script, String as V8String, TryCatch, V8,
 };
 
-use dot_http_lib::script_engine::{handle, INIT_SCRIPT};
+use dot_http_lib::script_engine::INIT_SCRIPT;
 use dot_http_lib::Result;
 
-use crate::script_engine::{handle, Script, ScriptEngine};
+use crate::script_engine::{Script, ScriptEngine};
 
 static V8_INIT: Once = Once::new();
 pub struct V8ScriptEngine {
@@ -51,7 +51,7 @@ impl V8ScriptEngine {
 
         let environment: serde_json::Value = serde_json::from_str(env_script)?;
         if let Some(environment) = environment.get(env) {
-            engine.declare(environment);
+            engine.declare(environment)?;
             let script = format!(
                 r#"
             var _env_file = {};
@@ -63,7 +63,7 @@ impl V8ScriptEngine {
         }
 
         let snapshot: serde_json::Value = serde_json::from_str(snapshot_script).unwrap();
-        engine.declare(&snapshot);
+        engine.declare(&snapshot)?;
         let snapshot = format!("var _snapshot = {};", snapshot);
         engine.execute_script(&Script::internal_script(snapshot.as_str()))?;
 
