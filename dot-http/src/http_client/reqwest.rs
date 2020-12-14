@@ -1,8 +1,9 @@
 use crate::http_client::{ClientConfig, HttpClient};
-use crate::{ Request, Response, Result};
+use dot_http_lib::{Request, Response, Result};
 use reqwest::blocking::{Client};
 use std::convert::{ TryInto};
 use reqwest::blocking::{Request as Reqwest};
+
 
 pub struct ReqwestHttpClient {
     client: Client,

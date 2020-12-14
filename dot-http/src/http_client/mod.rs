@@ -1,4 +1,6 @@
-use crate::{ClientConfig, Request, Response, Result};
+use dot_http_lib::{Request, Response, Result};
+
+use crate::ClientConfig;
 
 #[cfg(test)]
 mod tests;

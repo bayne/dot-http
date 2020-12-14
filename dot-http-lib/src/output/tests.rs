@@ -1,10 +1,7 @@
-use crate::{
-    output::{
-        parse_format, prettify_response_body, print::FormattedOutputter, FormatItem, Outputter,
-    },
-    Method,
-};
-use http::{StatusCode, Version};
+use http::{Method, StatusCode, Version};
+
+use crate::output::print::FormattedOutputter;
+use crate::output::{parse_format, prettify_response_body, FormatItem, Outputter};
 
 #[test]
 fn output_is_prettified() {
@@ -57,13 +54,13 @@ fn test_format_request() {
     let request = http::Request::builder()
         .method(Method::GET)
         .uri("localhost:8080")
-        .header("Content-Type","text/json" )
+        .header("Content-Type", "text/json")
         .body(Some("{\"req\":\"great\"}".to_string()))
         .unwrap();
     let response = http::Response::builder()
         .status(StatusCode::OK)
         .version(Version::HTTP_11)
-        .header("Content-Type","text/json" )
+        .header("Content-Type", "text/json")
         .body(Some("{\"resp\":\"great-resp\"}".to_string()))
         .unwrap();
     let empty_format = parse_format("").expect("valid format");

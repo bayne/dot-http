@@ -1,6 +1,6 @@
 use crate::common::{create_file, DebugWriter};
-use dot_http::output::parse_format;
-use dot_http::output::print::FormattedOutputter;
+use dot_http_lib::output::parse_format;
+use dot_http_lib::output::print::FormattedOutputter;
 use dot_http::{ClientConfig, Runtime};
 use httpmock::{Mock, MockServer};
 use std::borrow::BorrowMut;

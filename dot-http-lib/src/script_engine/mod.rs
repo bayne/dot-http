@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Map;
@@ -7,14 +5,7 @@ use serde_json::Map;
 use crate::parser::Selection;
 use crate::Result;
 
-#[cfg(feature = "boa")]
-pub mod boa;
-
-#[cfg(feature = "rusty_v8")]
-pub mod v8;
-
-#[cfg(test)]
-mod tests;
+pub const INIT_SCRIPT: &str = include_str!("init.js");
 
 #[derive(Debug)]
 pub struct Value<S> {
@@ -43,60 +34,6 @@ pub struct InlineScript {
     pub selection: Selection,
 }
 
-pub fn create_script_engine(
-    env_script: &str,
-    env: &str,
-    snapshot_script: &str,
-) -> Box<dyn ScriptEngine> {
-    if let Some(engine) = create_script_boa_engine(env_script, env, snapshot_script) {
-        engine
-    } else if let Some(engine) = create_script_v8_engine(env_script, env, snapshot_script) {
-        engine
-    } else {
-        panic!("No Script Engine compiled in the binary");
-    }
-}
-
-#[cfg(feature = "boa")]
-fn create_script_boa_engine(
-    env_script: &str,
-    env: &str,
-    snapshot_script: &str,
-) -> Option<Box<dyn ScriptEngine>> {
-    use crate::script_engine::boa::BoaScriptEngine;
-    Some(Box::new(
-        BoaScriptEngine::new(env_script, env, snapshot_script).unwrap(),
-    ))
-}
-#[cfg(not(feature = "boa"))]
-fn create_script_boa_engine(
-    _env_script: &str,
-    _env: &str,
-    _snapshot_script: &str,
-) -> Option<Box<dyn ScriptEngine>> {
-    None
-}
-
-#[cfg(feature = "rusty_v8")]
-fn create_script_v8_engine(
-    env_script: &str,
-    env: &str,
-    snapshot_script: &str,
-) -> Option<Box<dyn ScriptEngine>> {
-    use crate::script_engine::v8::V8ScriptEngine;
-    Some(Box::new(
-        V8ScriptEngine::new(env_script, env, snapshot_script).unwrap(),
-    ))
-}
-#[cfg(not(feature = "rusty_v8"))]
-fn create_script_v8_engine(
-    _env_script: &str,
-    _env: &str,
-    _snapshot_script: &str,
-) -> Option<Box<dyn ScriptEngine>> {
-    None
-}
-
 pub struct Script<'a> {
     pub selection: Selection,
     pub src: &'a str,
@@ -112,17 +49,19 @@ impl<'a> Script<'a> {
 }
 
 pub trait ScriptEngine {
-    fn execute_script(&mut self, script: &Script) -> Result<String>;
+    fn execute_script(&mut self, script: &Script) -> crate::Result<String>;
 
-    fn empty(&self) -> String;
+    fn reset(&mut self) -> crate::Result<()>;
 
-    fn reset(&mut self) -> Result<()>;
+    fn snapshot(&mut self) -> crate::Result<String>;
 
-    fn snapshot(&mut self) -> Result<String>;
+    fn handle(&mut self, script: &Script, response: &crate::Response) -> crate::Result<()> {
+        inject(self, response)?;
+        self.execute_script(&script)?;
+        Ok(())
+    }
 
-    fn handle(&mut self, script: &Script, response: &crate::Response) -> Result<()>;
-
-    fn process(&mut self, value: Value<Unprocessed>) -> Result<Value<Processed>> {
+    fn process(&mut self, value: Value<Unprocessed>) -> crate::Result<Value<Processed>> {
         match value {
             Value {
                 state:
@@ -155,6 +94,19 @@ pub trait ScriptEngine {
             }),
         }
     }
+
+    fn declare(&mut self, variables_object: &serde_json::Value) -> Result<()> {
+        if let serde_json::Value::Object(map) = variables_object {
+            for (key, value) in map {
+                let script = serde_json::to_string(&value)?;
+                let script = format!("this['{}'] = {};", key, script);
+                self.execute_script(&Script::internal_script(script.as_str()))?;
+            }
+            Ok(())
+        } else {
+            Err(anyhow!("Failed to declare object: {:?}", variables_object))
+        }
+    }
 }
 
 #[derive(Deserialize, Serialize)]
@@ -181,33 +133,25 @@ impl From<&crate::Response> for Response {
     }
 }
 
-fn handle(
-    engine: &mut dyn ScriptEngine,
-    script: &Script,
-    response: &crate::Response,
-) -> Result<()> {
-    inject(engine, response)?;
-    engine.execute_script(&script)?;
-    Ok(())
-}
-
-fn inject(engine: &mut dyn ScriptEngine, response: &crate::Response) -> Result<()> {
+pub fn inject<S>(engine: &mut S, response: &crate::Response) -> Result<()>
+where
+    S: ScriptEngine + ?Sized,
+{
     let response: Response = response.into();
 
     let script = format!(
         "var response = {};",
-        serde_json::to_string(&response).unwrap()
+        serde_json::to_string(&response).map_err(|e| anyhow!("Failed to serialize response: {}", e))?
     );
     engine.execute_script(&Script::internal_script(&script))?;
     if let Some(body) = response.body {
         if let Ok(serde_json::Value::Object(response_body)) = serde_json::from_str(body.as_str()) {
             let script = format!(
                 "response.body = {};",
-                serde_json::to_string(&response_body).unwrap()
+                serde_json::to_string(&response_body).map_err(|e| anyhow!("Failed to serialize body: {}", e))?
             );
             engine
-                .execute_script(&Script::internal_script(&script))
-                .unwrap();
+                .execute_script(&Script::internal_script(&script))?;
         }
     }
     Ok(())

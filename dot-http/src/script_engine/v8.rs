@@ -1,5 +1,6 @@
-use crate::script_engine::{handle, Script, ScriptEngine};
-use crate::Result;
+use std::convert::From;
+use std::sync::Once;
+
 use rusty_v8::{
     inspector::{
         StringView, V8Inspector, V8InspectorClientBase, V8InspectorClientImpl, V8StackTrace,
@@ -8,8 +9,11 @@ use rusty_v8::{
     Context, ContextScope, Exception, Global, HandleScope, Isolate, OwnedIsolate,
     Script as V8Script, String as V8String, TryCatch, V8,
 };
-use std::convert::From;
-use std::sync::Once;
+
+use dot_http_lib::script_engine::{handle, INIT_SCRIPT};
+use dot_http_lib::Result;
+
+use crate::script_engine::{handle, Script, ScriptEngine};
 
 static V8_INIT: Once = Once::new();
 pub struct V8ScriptEngine {
@@ -47,7 +51,7 @@ impl V8ScriptEngine {
 
         let environment: serde_json::Value = serde_json::from_str(env_script)?;
         if let Some(environment) = environment.get(env) {
-            declare(&mut engine, environment);
+            engine.declare( environment);
             let script = format!(
                 r#"
             var _env_file = {};
@@ -59,12 +63,11 @@ impl V8ScriptEngine {
         }
 
         let snapshot: serde_json::Value = serde_json::from_str(snapshot_script).unwrap();
-        declare(&mut engine, &snapshot);
+        engine.declare( &snapshot);
         let snapshot = format!("var _snapshot = {};", snapshot);
         engine.execute_script(&Script::internal_script(snapshot.as_str()))?;
 
-        let script = include_str!("init.js");
-        engine.execute_script(&Script::internal_script(script))?;
+        engine.execute_script(&Script::internal_script(INIT_SCRIPT))?;
 
         Ok(engine)
     }
@@ -109,10 +112,6 @@ impl ScriptEngine for V8ScriptEngine {
         Ok(result.to_rust_string_lossy(scope))
     }
 
-    fn empty(&self) -> String {
-        "{}".to_string()
-    }
-
     fn reset(&mut self) -> Result<()> {
         let snapshot = self.snapshot()?;
         *self = V8ScriptEngine::new(self.env_file.as_str(), self.env.as_str(), snapshot.as_str())?;
@@ -123,24 +122,6 @@ impl ScriptEngine for V8ScriptEngine {
         let script = "JSON.stringify(_snapshot)";
         let out = self.execute_script(&Script::internal_script(script))?;
         Ok(out)
-    }
-
-    fn handle(&mut self, script: &Script, response: &crate::Response) -> Result<()> {
-        handle(self, script, response)
-    }
-}
-
-fn declare(engine: &mut V8ScriptEngine, variables_object: &serde_json::Value) {
-    let map = variables_object.as_object().unwrap();
-    for (key, value) in map {
-        let script = format!(
-            "this['{}'] = {};",
-            key,
-            serde_json::to_string(&value).unwrap()
-        );
-        engine
-            .execute_script(&Script::internal_script(script.as_str()))
-            .unwrap();
     }
 }
 

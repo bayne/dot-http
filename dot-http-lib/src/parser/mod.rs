@@ -313,12 +313,12 @@ impl Display for Value {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Value {
     pub state: Unprocessed,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Unprocessed {
     WithInline {
         value: String,
@@ -328,7 +328,7 @@ pub enum Unprocessed {
     WithoutInline(String, Selection),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct InlineScript {
     pub script: String,
     pub placeholder: String,
@@ -340,14 +340,14 @@ pub struct File {
     pub request_scripts: Vec<RequestScript>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RequestScript {
     pub request: Request,
     pub handler: Option<Handler>,
     pub selection: Selection,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Request {
     pub method: Method,
     pub target: Value,
@@ -366,7 +366,9 @@ pub enum Method {
     Options(Selection),
 }
 
-#[derive(Debug)]
+
+
+#[derive(Debug, Clone)]
 pub struct Header {
     pub field_name: String,
     pub field_value: Value,

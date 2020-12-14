@@ -1,6 +1,8 @@
 use http::{StatusCode, Version};
 
-use crate::script_engine::{create_script_engine, inject, Script, ScriptEngine};
+use dot_http_lib::script_engine::{inject, Script, ScriptEngine};
+
+use crate::script_engine::create_script_engine;
 
 #[cfg(test)]
 fn setup(src: &'static str) -> Box<dyn ScriptEngine> {

@@ -1,0 +1,38 @@
+[package]
+authors = ["Brian Payne <bwpayne@gmail.com>"]
+edition = "2018"
+name = "dot-http-wasm"
+version = "0.1.0"
+readme = "README.md"
+description = "dot-http is a text-based scriptable HTTP client. It is a simple language that resembles the actual HTTP protocol but with additional features to make it practical for someone who builds and tests APIs."
+repository = "https://github.com/bayne/dot-http"
+keywords = ["http", "scriptable", "javascript", "API"]
+categories = ["command-line-utilities", "development-tools::testing", "web-programming::http-client"]
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+dot-http-lib = { path = "../../dot-http-lib" }
+serde_json = "1.0"
+anyhow = "1.0"
+
+wasm-bindgen = "^0.2"
+yew = "0.17"
+js-sys = "0.3"
+http = "0.2.1"
+
+wasm-logger = "0.2.0"
+log = "0.4"
+
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    "HtmlTextAreaElement"
+]
+
+[dev-dependencies]
+httpmock = "0.4.2"
+tempfile = "3.1.0"
+
