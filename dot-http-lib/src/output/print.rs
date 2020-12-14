@@ -28,13 +28,7 @@ impl<'a, W: Write> FormattedOutputter<'a, W> {
 fn format_headers(headers: &HeaderMap) -> String {
     headers
         .iter()
-        .map(|(key, value)| {
-            format!(
-                "{}: {}\n",
-                key,
-                String::from_utf8_lossy(value.as_bytes())
-            )
-        })
+        .map(|(key, value)| format!("{}: {}\n", key, String::from_utf8_lossy(value.as_bytes())))
         .collect()
 }
 

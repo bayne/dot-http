@@ -366,8 +366,6 @@ pub enum Method {
     Options(Selection),
 }
 
-
-
 #[derive(Debug, Clone)]
 pub struct Header {
     pub field_name: String,

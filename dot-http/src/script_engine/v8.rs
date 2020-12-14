@@ -51,7 +51,7 @@ impl V8ScriptEngine {
 
         let environment: serde_json::Value = serde_json::from_str(env_script)?;
         if let Some(environment) = environment.get(env) {
-            engine.declare( environment);
+            engine.declare(environment);
             let script = format!(
                 r#"
             var _env_file = {};
@@ -63,7 +63,7 @@ impl V8ScriptEngine {
         }
 
         let snapshot: serde_json::Value = serde_json::from_str(snapshot_script).unwrap();
-        engine.declare( &snapshot);
+        engine.declare(&snapshot);
         let snapshot = format!("var _snapshot = {};", snapshot);
         engine.execute_script(&Script::internal_script(snapshot.as_str()))?;
 

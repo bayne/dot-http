@@ -1,4 +1,3 @@
-
 use boa::exec::Executor;
 use boa::exec::Interpreter;
 use boa::realm::Realm;
@@ -7,7 +6,7 @@ use boa::syntax::lexer::Lexer;
 use boa::syntax::parser::Parser;
 
 use dot_http_lib::script_engine::INIT_SCRIPT;
-use dot_http_lib::{ Result};
+use dot_http_lib::Result;
 
 use crate::script_engine::{Script, ScriptEngine};
 

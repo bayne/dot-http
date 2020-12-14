@@ -7,9 +7,9 @@ extern crate pest_derive;
 
 use http::Method;
 
+use crate::parser::Header;
 use crate::script_engine::ScriptEngine;
 use anyhow::Context;
-use crate::parser::Header;
 
 pub mod output;
 pub mod parser;
@@ -72,7 +72,6 @@ fn process_headers(
         .map(|header| process_header(engine, header))
         .collect()
 }
-
 
 impl From<&parser::Method> for Method {
     fn from(method: &parser::Method) -> Self {

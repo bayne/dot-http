@@ -296,8 +296,8 @@
 
 use anyhow::Result;
 use clap::{App, Arg};
-use dot_http_lib::output::{parse_format, print::FormattedOutputter};
 use dot_http::{ClientConfig, Runtime};
+use dot_http_lib::output::{parse_format, print::FormattedOutputter};
 use std::borrow::BorrowMut;
 use std::io::stdout;
 use std::path::Path;

@@ -1,9 +1,8 @@
 use crate::http_client::{ClientConfig, HttpClient};
 use dot_http_lib::{Request, Response, Result};
-use reqwest::blocking::{Client};
-use std::convert::{ TryInto};
-use reqwest::blocking::{Request as Reqwest};
-
+use reqwest::blocking::Client;
+use reqwest::blocking::Request as Reqwest;
+use std::convert::TryInto;
 
 pub struct ReqwestHttpClient {
     client: Client,
@@ -32,15 +31,15 @@ impl HttpClient for ReqwestHttpClient {
         // reqwest doesn't deal with the non-existence of a body in their TryFrom method
         // so take it out an deal with it separately
         let (parts, body) = request.into_parts();
-        let mut  request: Reqwest = http::Request::from_parts(parts, "").try_into()?;
+        let mut request: Reqwest = http::Request::from_parts(parts, "").try_into()?;
         // override our filler body
         *request.body_mut() = body.map(Into::into);
 
         let response = self.client.execute(request)?;
 
-       let mut response_builder = http::Response::builder()
+        let mut response_builder = http::Response::builder()
             .version(response.version())
-           .status(response.status());
+            .status(response.status());
 
         for (name, value) in response.headers() {
             response_builder = response_builder.header(name, value);
@@ -49,8 +48,7 @@ impl HttpClient for ReqwestHttpClient {
         let body = response.text()?;
         let response = if !body.is_empty() {
             response_builder.body(Some(body))?
-        }
-        else {
+        } else {
             response_builder.body(None)?
         };
 

@@ -141,17 +141,18 @@ where
 
     let script = format!(
         "var response = {};",
-        serde_json::to_string(&response).map_err(|e| anyhow!("Failed to serialize response: {}", e))?
+        serde_json::to_string(&response)
+            .map_err(|e| anyhow!("Failed to serialize response: {}", e))?
     );
     engine.execute_script(&Script::internal_script(&script))?;
     if let Some(body) = response.body {
         if let Ok(serde_json::Value::Object(response_body)) = serde_json::from_str(body.as_str()) {
             let script = format!(
                 "response.body = {};",
-                serde_json::to_string(&response_body).map_err(|e| anyhow!("Failed to serialize body: {}", e))?
+                serde_json::to_string(&response_body)
+                    .map_err(|e| anyhow!("Failed to serialize body: {}", e))?
             );
-            engine
-                .execute_script(&Script::internal_script(&script))?;
+            engine.execute_script(&Script::internal_script(&script))?;
         }
     }
     Ok(())
