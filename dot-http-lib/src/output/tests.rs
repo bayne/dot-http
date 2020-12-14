@@ -1,9 +1,7 @@
-use crate::{
-    output::{
-        parse_format, prettify_response_body, print::FormattedOutputter, FormatItem, Outputter,
-    },
-    Method, Request, Response, Version,
-};
+use http::{Method, StatusCode, Version};
+
+use crate::output::print::FormattedOutputter;
+use crate::output::{parse_format, prettify_response_body, FormatItem, Outputter};
 
 #[test]
 fn output_is_prettified() {
@@ -53,19 +51,18 @@ fn format_parsing_test() {
 }
 #[test]
 fn test_format_request() {
-    let request = Request {
-        method: Method::Get,
-        target: "localhost:8080".to_string(),
-        headers: vec![("Content-Type".to_string(), "text/json".to_string())],
-        body: Some("{\"req\":\"great\"}".to_string()),
-    };
-    let response = Response {
-        status_code: 200,
-        status: "200 Ok".to_string(),
-        version: Version::Http11,
-        headers: vec![("Content-Type".to_string(), "text/json".to_string())],
-        body: Some("{\"resp\":\"great-resp\"}".to_string()),
-    };
+    let request = http::Request::builder()
+        .method(Method::GET)
+        .uri("localhost:8080")
+        .header("Content-Type", "text/json")
+        .body(Some("{\"req\":\"great\"}".to_string()))
+        .unwrap();
+    let response = http::Response::builder()
+        .status(StatusCode::OK)
+        .version(Version::HTTP_11)
+        .header("Content-Type", "text/json")
+        .body(Some("{\"resp\":\"great-resp\"}".to_string()))
+        .unwrap();
     let empty_format = parse_format("").expect("valid format");
 
     let mut buffer = Vec::new();
@@ -88,13 +85,13 @@ fn test_format_request() {
     assert_eq!(
         String::from_utf8(buffer).expect("is a string"),
         r#"GET localhost:8080
-Content-Type: text/json
+content-type: text/json
 
 {
   "req": "great"
 }
-HTTP/1.1 200 Ok
-Content-Type: text/json
+HTTP/1.1 200 OK
+content-type: text/json
 
 {
   "resp": "great-resp"
@@ -113,10 +110,10 @@ Content-Type: text/json
     assert_eq!(
         String::from_utf8(buffer).expect("is a string"),
         r#"GET localhost:8080
-Content-Type: text/json
+content-type: text/json
 
-HTTP/1.1 200 Ok
-Content-Type: text/json
+HTTP/1.1 200 OK
+content-type: text/json
 
 "#
     );
@@ -131,6 +128,6 @@ Content-Type: text/json
         .expect("print works correctly");
     assert_eq!(
         String::from_utf8(buffer).expect("is a string"),
-        "GET localhost:8080\nHTTP/1.1 200 Ok\n"
+        "GET localhost:8080\nHTTP/1.1 200 OK\n"
     );
 }

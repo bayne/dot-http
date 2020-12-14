@@ -3,3 +3,4 @@ target
 *.swp
 .snapshot.json
 .idea
+.DS_Store

@@ -1,5 +1,3 @@
-use crate::script_engine::{handle, Script, ScriptEngine};
-
 use boa::exec::Executor;
 use boa::exec::Interpreter;
 use boa::realm::Realm;
@@ -7,8 +5,10 @@ use boa::syntax::ast::node::Node;
 use boa::syntax::lexer::Lexer;
 use boa::syntax::parser::Parser;
 
-use crate::{Response, Result};
-use std::convert::From;
+use dot_http_lib::script_engine::INIT_SCRIPT;
+use dot_http_lib::Result;
+
+use crate::script_engine::{Script, ScriptEngine};
 
 pub struct BoaScriptEngine {
     interpreter: Interpreter,
@@ -29,7 +29,7 @@ impl BoaScriptEngine {
 
         let environment: serde_json::Value = serde_json::from_str(env_script)?;
         if let Some(environment) = environment.get(env) {
-            declare(&mut engine, environment)?;
+            engine.declare(environment)?;
             let script = format!(
                 r#"
             var _env_file = {};
@@ -41,12 +41,11 @@ impl BoaScriptEngine {
         }
 
         let snapshot: serde_json::Value = serde_json::from_str(snapshot_script)?;
-        declare(&mut engine, &snapshot)?;
+        engine.declare(&snapshot)?;
         let snapshot = format!("var _snapshot = {};", snapshot);
         engine.execute_script(&Script::internal_script(snapshot.as_str()))?;
 
-        let script = include_str!("init.js");
-        engine.execute_script(&Script::internal_script(script))?;
+        engine.execute_script(&Script::internal_script(INIT_SCRIPT))?;
 
         Ok(engine)
     }
@@ -74,10 +73,6 @@ impl ScriptEngine for BoaScriptEngine {
         Ok(result)
     }
 
-    fn empty(&self) -> String {
-        String::from("{}")
-    }
-
     fn reset(&mut self) -> Result<()> {
         let snapshot = self.snapshot()?;
         *self = BoaScriptEngine::new(
@@ -92,22 +87,5 @@ impl ScriptEngine for BoaScriptEngine {
         let script = "JSON.stringify(_snapshot)";
         let out = self.execute_script(&Script::internal_script(script))?;
         Ok(out)
-    }
-
-    fn handle(&mut self, request_script: &Script, response: &Response) -> Result<()> {
-        handle(self, request_script, response)
-    }
-}
-
-fn declare(engine: &mut BoaScriptEngine, variables_object: &serde_json::Value) -> Result<()> {
-    if let serde_json::Value::Object(map) = variables_object {
-        for (key, value) in map {
-            let script = serde_json::to_string(&value)?;
-            let script = format!("this['{}'] = {};", key, script);
-            engine.execute_script(&Script::internal_script(script.as_str()))?;
-        }
-        Ok(())
-    } else {
-        Err(anyhow!("Failed to declare object: {:?}", variables_object))
     }
 }

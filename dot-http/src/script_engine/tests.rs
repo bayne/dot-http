@@ -1,5 +1,8 @@
-use crate::script_engine::{create_script_engine, inject, Script, ScriptEngine};
-use crate::{Response, Version};
+use http::{StatusCode, Version};
+
+use dot_http_lib::script_engine::{inject, Script, ScriptEngine};
+
+use crate::script_engine::create_script_engine;
 
 #[cfg(test)]
 fn setup(src: &'static str) -> Box<dyn ScriptEngine> {
@@ -63,7 +66,7 @@ fn test_initialize() {
     assert!(result.is_ok());
 
     if let Ok(result_value) = result {
-        assert!(result_value == "1");
+        assert_eq!(result_value, "1");
     }
 }
 
@@ -91,20 +94,17 @@ fn test_reset() {
 fn test_headers_available_in_response() {
     let mut engine = create_script_engine("{}", "dev", "{}");
 
-    let headers = vec![("X-Auth-Token".to_string(), "SomeTokenValue".to_string())];
-
-    let response = Response {
-        version: Version::Http09,
-        headers,
-        body: Some("{}".to_string()),
-        status_code: 0,
-        status: "".to_string(),
-    };
+    let response = http::Response::builder()
+        .version(Version::HTTP_09)
+        .header("X-Auth-Token", "SomeTokenValue")
+        .status(StatusCode::OK)
+        .body(Some("{}".to_string()))
+        .unwrap();
 
     inject(engine.as_mut(), &response).unwrap();
 
     let result = engine
-        .execute_script(&Script::internal_script("response.headers['X-Auth-Token']"))
+        .execute_script(&Script::internal_script("response.headers['x-auth-token']"))
         .unwrap();
 
     assert_eq!("SomeTokenValue", result);

@@ -1,4 +1,6 @@
-use crate::{ClientConfig, Request, Response, Result};
+use dot_http_lib::{Request, Response, Result};
+
+use crate::ClientConfig;
 
 #[cfg(test)]
 mod tests;
@@ -10,5 +12,5 @@ pub trait HttpClient {
     where
         Self: Sized;
 
-    fn execute(&self, request: &Request) -> Result<Response>;
+    fn execute(&self, request: Request) -> Result<Response>;
 }

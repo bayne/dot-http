@@ -3,8 +3,7 @@ pub mod print;
 #[cfg(test)]
 mod tests;
 
-use crate::{Method, Request, Response, Result, Version};
-use std::fmt;
+use crate::{Request, Response, Result};
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum FormatItem {
@@ -61,30 +60,4 @@ fn prettify_response_body(body: &str) -> String {
 pub trait Outputter {
     fn response(&mut self, response: &Response) -> Result<()>;
     fn request(&mut self, request: &Request) -> Result<()>;
-}
-
-impl fmt::Display for Version {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let version = match *self {
-            Version::Http09 => "HTTP/0.9",
-            Version::Http2 => "HTTP/2.0",
-            Version::Http10 => "HTTP/1.0",
-            Version::Http11 => "HTTP/1.1",
-        };
-        f.write_str(version)
-    }
-}
-
-impl fmt::Display for Method {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let method = match *self {
-            Method::Get => "GET",
-            Method::Post => "POST",
-            Method::Delete => "DELETE",
-            Method::Put => "PUT",
-            Method::Patch => "PATCH",
-            Method::Options => "OPTIONS",
-        };
-        f.write_str(method)
-    }
 }
