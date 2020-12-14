@@ -105,6 +105,7 @@ pub struct RunningRequest {
     // outputter: FormattedOutputter<'a, TextAreaWriter>,
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum Message {
     StartRequest,
     Run(RunningRequest),

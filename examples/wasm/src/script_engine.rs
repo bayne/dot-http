@@ -45,7 +45,7 @@ impl ScriptEngine for BrowserScriptEngine {
         let result =
             global_eval(script.src).map_err(|err| anyhow!("Error calling eval: {:?}", err))?;
 
-        Ok(result.as_string().unwrap_or_else(|| String::new()))
+        Ok(result.as_string().unwrap_or_else(String::new))
     }
 
     fn reset(&mut self) -> Result<()> {
