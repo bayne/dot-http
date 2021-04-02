@@ -31,10 +31,10 @@ impl fmt::Display for Error {
 }
 
 fn invalid_pair(expected: Rule, got: Rule) -> ! {
-    panic!(format!(
-        "Wrong pair. Expected: {:?}, Got: {:?}",
-        expected, got
-    ))
+    panic!(
+        "{}",
+        format!("Wrong pair. Expected: {:?}, Got: {:?}", expected, got)
+    )
 }
 
 trait FromPair {
@@ -105,7 +105,7 @@ impl FromPair for Method {
                 "PUT" => Method::Put(selection),
                 "PATCH" => Method::Patch(selection),
                 "OPTIONS" => Method::Options(selection),
-                _ => panic!(format!("Unsupported method: {}", pair.as_str())),
+                _ => panic!("{}", format!("Unsupported method: {}", pair.as_str())),
             },
             _ => invalid_pair(Rule::method, pair.as_rule()),
         }
