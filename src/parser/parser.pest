@@ -33,4 +33,4 @@ header_field = ${ field_name ~ ":" ~ SP* ~ field_value}
 field_name = { token }
 field_value = { (!CRLF ~ (inline_script | ANY))* }
 
-file = { SOI ~ CRLF* ~ (request_script ~ CRLF* ~ ((request_separator ~ CRLF*) | EOI))* ~ EOI }
+file = { SOI ~ (request_separator ~ CRLF | CRLF*) ~ (request_script ~ CRLF* ~ ((request_separator ~ CRLF*) | EOI))* ~ EOI }
