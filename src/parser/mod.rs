@@ -31,7 +31,7 @@ impl fmt::Display for Error {
 }
 
 fn invalid_pair(expected: Rule, got: Rule) -> ! {
-    panic!(format!(
+    panic!("{}", format!(
         "Wrong pair. Expected: {:?}, Got: {:?}",
         expected, got
     ))
@@ -105,7 +105,7 @@ impl FromPair for Method {
                 "PUT" => Method::Put(selection),
                 "PATCH" => Method::Patch(selection),
                 "OPTIONS" => Method::Options(selection),
-                _ => panic!(format!("Unsupported method: {}", pair.as_str())),
+                _ => panic!("{}",format!("Unsupported method: {}", pair.as_str())),
             },
             _ => invalid_pair(Rule::method, pair.as_rule()),
         }
@@ -221,11 +221,7 @@ impl FromPair for Request {
                             Rule::request_body => Some(pair),
                             _ => None,
                         });
-                        if let Some(pair) = pair {
-                            Some(Value::from_pair(filename, pair))
-                        } else {
-                            None
-                        }
+                        pair.map(|pair| Value::from_pair(filename, pair))
                     },
                 }
             }
@@ -247,11 +243,7 @@ impl FromPair for RequestScript {
                             Rule::response_handler => Some(pair),
                             _ => None,
                         });
-                        if let Some(pair) = pair {
-                            Some(Handler::from_pair(filename, pair))
-                        } else {
-                            None
-                        }
+                        pair.map(|pair| Handler::from_pair(filename, pair))
                     },
                 }
             }
@@ -307,8 +299,8 @@ pub fn parse(filename: PathBuf, source: &str) -> Result<File> {
 impl Display for Value {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self.state {
-            Unprocessed::WithInline { value, .. } => f.write_str(&value),
-            Unprocessed::WithoutInline(value, _) => f.write_str(&value),
+            Unprocessed::WithInline { value, .. } => f.write_str(value),
+            Unprocessed::WithoutInline(value, _) => f.write_str(value),
         }
     }
 }
