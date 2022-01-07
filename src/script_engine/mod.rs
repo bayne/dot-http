@@ -182,7 +182,7 @@ fn handle(
     response: &crate::Response,
 ) -> Result<()> {
     inject(engine, response)?;
-    engine.execute_script(&script)?;
+    engine.execute_script(script)?;
     Ok(())
 }
 

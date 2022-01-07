@@ -31,7 +31,7 @@ fn format_headers(headers: &[(String, String)]) -> String {
 
 fn format_body(body: &Option<String>) -> String {
     match body {
-        Some(body) => prettify_response_body(&body),
+        Some(body) => prettify_response_body(body),
         None => String::from(""),
     }
 }
