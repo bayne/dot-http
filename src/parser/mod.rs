@@ -6,10 +6,9 @@ use pest::error::LineColLocation;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest::Span;
-use serde::export::Formatter;
 use std::error;
 use std::fmt;
-use std::fmt::Display;
+use std::fmt::{Display, Formatter};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -24,17 +23,14 @@ pub struct Error {
 
 impl error::Error for Error {}
 
-impl fmt::Display for Error {
+impl Display for Error {
     fn fmt(&self, fmt: &mut Formatter<'_>) -> fmt::Result {
         fmt.write_str(self.message.as_str())
     }
 }
 
 fn invalid_pair(expected: Rule, got: Rule) -> ! {
-    panic!(
-        "{}",
-        format!("Wrong pair. Expected: {:?}, Got: {:?}", expected, got)
-    )
+    panic!("Wrong pair. Expected: {:?}, Got: {:?}", expected, got)
 }
 
 trait FromPair {
@@ -105,7 +101,7 @@ impl FromPair for Method {
                 "PUT" => Method::Put(selection),
                 "PATCH" => Method::Patch(selection),
                 "OPTIONS" => Method::Options(selection),
-                _ => panic!("{}", format!("Unsupported method: {}", pair.as_str())),
+                _ => panic!("Unsupported method: {}", pair.as_str()),
             },
             _ => invalid_pair(Rule::method, pair.as_rule()),
         }

@@ -2,7 +2,8 @@ use crate::common::{create_file, DebugWriter};
 use dot_http::output::parse_format;
 use dot_http::output::print::FormattedOutputter;
 use dot_http::{ClientConfig, Runtime};
-use httpmock::{Mock, MockServer};
+use httpmock::Method::POST;
+use httpmock::MockServer;
 use std::borrow::BorrowMut;
 
 mod common;
@@ -11,28 +12,24 @@ mod common;
 fn multi_post() {
     let server = MockServer::start();
 
-    Mock::new()
-        .expect_method(httpmock::Method::POST)
-        .expect_path("/multi_post_first")
-        .return_status(200)
-        .return_header("date", "")
-        .return_body(r#"{"value": true}"#)
-        .create_on(&server);
+    server.mock(|when, then| {
+        when.method(POST).path("/multi_post_first");
+        then.status(200)
+            .header("date", "")
+            .body(r#"{"value": true}"#);
+    });
 
-    Mock::new()
-        .expect_method(httpmock::Method::GET)
-        .expect_path("/multi_get_second")
-        .return_status(200)
-        .return_header("date", "")
-        .return_body(r#"{"value": false}"#)
-        .create_on(&server);
+    server.mock(|when, then| {
+        when.method(httpmock::Method::GET).path("/multi_get_second");
+        then.status(200)
+            .header("date", "")
+            .body(r#"{"value": false}"#);
+    });
 
-    Mock::new()
-        .expect_method(httpmock::Method::GET)
-        .expect_path("/multi_get_third")
-        .return_status(204)
-        .return_header("date", "")
-        .create_on(&server);
+    server.mock(|when, then| {
+        when.method(httpmock::Method::GET).path("/multi_get_third");
+        then.status(204).header("date", "");
+    });
 
     let env = "dev";
 
@@ -99,8 +96,7 @@ content-length: 16\
 GET http://localhost:{port}/multi_get_third
 HTTP/1.1 204 No Content
 date: \n\
-content-length: 0\
-\n\n\n",
+\n\n",
             port = server.port()
         )
     );

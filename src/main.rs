@@ -302,9 +302,11 @@ use std::borrow::BorrowMut;
 use std::io::stdout;
 use std::path::Path;
 
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 fn main() -> Result<()> {
     let matches = App::new("dot-http")
-        .version("0.1.0")
+        .version(VERSION)
         .about("Executes HTTP scripts")
         .author("Brian Payne")
         .arg(
