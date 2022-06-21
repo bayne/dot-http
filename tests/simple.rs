@@ -2,7 +2,7 @@ use crate::common::{create_file, DebugWriter};
 use dot_http::output::parse_format;
 use dot_http::output::print::FormattedOutputter;
 use dot_http::{ClientConfig, Runtime};
-use httpmock::{Mock, MockServer};
+use httpmock::MockServer;
 use std::borrow::BorrowMut;
 
 mod common;
@@ -10,12 +10,10 @@ mod common;
 #[test]
 fn simple_get() {
     let server = MockServer::start();
-    Mock::new()
-        .expect_method(httpmock::Method::GET)
-        .expect_path("/simple_get/30")
-        .return_status(200)
-        .return_header("date", "")
-        .create_on(&server);
+    server.mock(|when, then| {
+        when.method(httpmock::Method::GET).path("/simple_get/30");
+        then.status(200).header("date", "");
+    });
 
     let env = "dev";
 
@@ -63,13 +61,12 @@ content-length: 0\
 #[test]
 fn simple_post() {
     let server = MockServer::start();
-    Mock::new()
-        .expect_method(httpmock::Method::POST)
-        .expect_path("/simple_post")
-        .return_status(200)
-        .return_header("date", "")
-        .return_body(r#"{"value": true}"#)
-        .create_on(&server);
+    server.mock(|when, then| {
+        when.method(httpmock::Method::POST).path("/simple_post");
+        then.status(200)
+            .header("date", "")
+            .body(r#"{"value": true}"#);
+    });
 
     let env = "dev";
 

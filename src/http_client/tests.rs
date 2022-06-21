@@ -1,7 +1,8 @@
 use crate::http_client::reqwest::ReqwestHttpClient;
 use crate::http_client::HttpClient;
 use crate::{Method, Request};
-use httpmock::{Mock, MockServer};
+use httpmock::Method::POST;
+use httpmock::MockServer;
 
 #[test]
 fn execute() {
@@ -9,14 +10,14 @@ fn execute() {
 
     let server = MockServer::start();
 
-    let mock = Mock::new()
-        .expect_method(httpmock::Method::POST)
-        .expect_path("/defaults")
-        .expect_body(body)
-        .expect_header("X-Custom-Header", "test_validate_verify")
-        .expect_header("Content-Type", "application/json")
-        .return_status(200)
-        .create_on(&server);
+    let mock = server.mock(|when, then| {
+        when.method(POST)
+            .path("/defaults")
+            .body(body)
+            .header("X-Custom-Header", "test_validate_verify")
+            .header("Content-Type", "application/json");
+        then.status(200);
+    });
 
     let request = Request {
         method: Method::Post,
@@ -36,6 +37,6 @@ fn execute() {
     let client = ReqwestHttpClient::default();
     let res = client.execute(&request).unwrap();
 
-    assert_eq!(mock.times_called(), 1);
+    mock.assert();
     assert_eq!(res.status_code, 200);
 }

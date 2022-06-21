@@ -174,6 +174,6 @@ impl V8InspectorClientImpl for ConsoleLogger {
         _column_number: u32,
         _stack_trace: &mut V8StackTrace,
     ) {
-        println!("{}", message.to_string());
+        println!("{}", message);
     }
 }
