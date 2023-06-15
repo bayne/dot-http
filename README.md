@@ -44,9 +44,12 @@ rustup run stable cargo install dot-http
 
 See `dot-http --help` for usage.
 
-### Vim
+### Editor Support
 
-See this [plugin](https://github.com/bayne/vim-dot-http) to use dot-http within vim.
+See these plugins to use dot-http within your editor
+
+- [Vim](https://github.com/bayne/vim-dot-http)
+- [Emacs](https://github.com/mschloesser/dot-http-mode)
 
 ### The request
 
